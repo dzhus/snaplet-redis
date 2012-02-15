@@ -13,7 +13,7 @@ module Snap.Snaplet.RedisDB (RedisDB
                             , redisDBInit)
 where
 
-import Prelude hiding ((.)) 
+import Prelude hiding ((.))
 import Control.Category ((.))
 import Control.Monad.CatchIO
 import Control.Monad.State
@@ -46,10 +46,11 @@ makeLens ''RedisDB
 ------------------------------------------------------------------------------
 -- | Perform action using Redis connection from RedisDB snaplet pool.
 --
--- 
+--
 -- > withRedisDB database $ \db -> do
 -- >   r <- liftIO $ hgetall db key
-withRedisDB :: (MonadCatchIO m, MonadState app m) => Lens app (Snaplet RedisDB) -> (Redis -> m b) -> m b
+withRedisDB :: (MonadCatchIO m, MonadState app m) =>
+               Lens app (Snaplet RedisDB) -> (Redis -> m b) -> m b
 withRedisDB snaplet action = do
   p <- gets $ getL (dbPool . snapletValue . snaplet)
   withResource p action
@@ -60,9 +61,10 @@ withRedisDB snaplet action = do
 -- 'Data.Pool.createPool' for explanation of pool/stripe size values.
 --
 -- > appInit :: SnapletInit MyApp MyApp
--- > appInit = makeSnaplet "app" "Application with Redis child snaplet" Nothing $
+-- > appInit = makeSnaplet "app" "App with Redis child snaplet" Nothing $
 -- >           do
--- >             d <- nestSnaplet "" database $ redisDBInit "127.0.0.1" "6379" 5 5 60
+-- >             d <- nestSnaplet "" database $
+-- >                                 redisDBInit "127.0.0.1" "6379" 5 5 60
 -- >             return $ MyApp d
 redisDBInit :: String -- ^ Redis host.
             -> String -- ^ Redis port.
@@ -70,8 +72,9 @@ redisDBInit :: String -- ^ Redis host.
             -> Int -- ^ Stripe size (connections per stripe count).
             -> NominalDiffTime -- ^ Keep unused connection open for that long.
             -> SnapletInit b RedisDB
-redisDBInit host port poolSize subpoolSize keepAlive = 
+redisDBInit host port poolSize subpoolSize keepAlive =
     makeSnaplet "snaplet-redis" description Nothing $ do
-      pool <- liftIO $ 
-              createPool (connect host port) disconnect poolSize keepAlive subpoolSize
+      pool <- liftIO $
+              createPool (connect host port) disconnect
+                         poolSize keepAlive subpoolSize
       return $ RedisDB pool
