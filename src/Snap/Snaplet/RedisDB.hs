@@ -35,12 +35,6 @@ import Snap.Snaplet
 description :: Text
 description = "Redis snaplet."
 
-keepAlive :: NominalDiffTime
-keepAlive = 60
-
-poolSize = 5
-subpoolSize = 5
-
 ------------------------------------------------------------------------------
 -- | Snaplet's state data type
 data RedisDB = RedisDB
@@ -62,17 +56,22 @@ withRedisDB snaplet action = do
 
 
 ------------------------------------------------------------------------------
--- | Make RedisDB snaplet and initialize database connection.
+-- | Make RedisDB snaplet and initialize database connection. See
+-- 'Data.Pool.createPool' for explanation of pool/stripe size values.
 --
 -- > appInit :: SnapletInit MyApp MyApp
 -- > appInit = makeSnaplet "app" "Application with Redis child snaplet" Nothing $
 -- >           do
--- >             d <- nestSnaplet "" database $ redisDBInit "127.0.0.1" "6379"
+-- >             d <- nestSnaplet "" database $ redisDBInit "127.0.0.1" "6379" 5 5 60
 -- >             return $ MyApp d
 redisDBInit :: String -- ^ Redis host.
             -> String -- ^ Redis port.
+            -> Int -- ^ Connection pool size (stripe count).
+            -> Int -- ^ Stripe size (connections per stripe count).
+            -> NominalDiffTime -- ^ Keep unused connection open for that long.
             -> SnapletInit b RedisDB
-redisDBInit host port = makeSnaplet "snaplet-redis" description Nothing $ do
-  pool <- liftIO $ 
-    createPool (connect host port) disconnect poolSize keepAlive subpoolSize
-  return $ RedisDB pool
+redisDBInit host port poolSize subpoolSize keepAlive = 
+    makeSnaplet "snaplet-redis" description Nothing $ do
+      pool <- liftIO $ 
+              createPool (connect host port) disconnect poolSize keepAlive subpoolSize
+      return $ RedisDB pool
