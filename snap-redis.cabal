@@ -47,11 +47,25 @@ Cabal-version:       >=1.2
 
 
 Library
+  ghc-options: -O2 -Wall
+  hs-source-dirs: src
+
   -- Modules exported by the library.
-  -- Exposed-modules:     
+  Exposed-modules:   Snap.Snaplet.RedisDB
   
   -- Packages needed in order to build this package.
-  -- Build-depends:       
+  Build-depends:
+    base >= 4 && < 5,
+    data-lens >= 2.0.1 && < 2.1,
+    data-lens-template >= 2.1 && < 2.2,
+    MonadCatchIO-transformers >= 0.2.1 && < 0.3,
+    mtl >= 2 && < 3,
+    redis == 0.12.*,
+    resource-pool-catchio == 0.2.*,
+    snap == 0.7.*,
+    snap-core == 0.7.*,
+    text == 0.11.*,
+    time >= 1.1 && < 1.5
   
   -- Modules not exported by this package.
   -- Other-modules:       
