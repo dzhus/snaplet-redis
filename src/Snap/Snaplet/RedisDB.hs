@@ -9,23 +9,19 @@ Redis DB snaplet.
 -}
 
 module Snap.Snaplet.RedisDB (RedisDB
-                            , withRedisDB
+                            , runRedisDB
                             , redisDBInit)
 where
 
 import Prelude hiding ((.))
 import Control.Category ((.))
-import Control.Monad.CatchIO
 import Control.Monad.State
 
 import Data.Lens.Common
 import Data.Lens.Template
 import Data.Text (Text)
 
-import Data.Pool
-import Database.Redis.Redis
-
-import Data.Time.Clock
+import Database.Redis
 
 import Snap.Snaplet
 
@@ -38,43 +34,36 @@ description = "Redis snaplet."
 ------------------------------------------------------------------------------
 -- | Snaplet's state data type
 data RedisDB = RedisDB
-    { _dbPool :: Pool Redis -- ^ DB connection pool.
+    { _connection :: Connection -- ^ DB connection pool.
     }
 
 makeLens ''RedisDB
 
 ------------------------------------------------------------------------------
--- | Perform action using Redis connection from RedisDB snaplet pool.
+-- | Perform action using Redis connection from RedisDB snaplet pool
+-- (wrapper for 'Database.Redis.runRedis').
 --
---
--- > withRedisDB database $ \db -> do
--- >   r <- liftIO $ hgetall db key
-withRedisDB :: (MonadCatchIO m, MonadState app m) =>
-               Lens app (Snaplet RedisDB) -> (Redis -> m b) -> m b
-withRedisDB snaplet action = do
-  p <- gets $ getL (dbPool . snapletValue . snaplet)
-  withResource p action
+-- > runRedisDB database $ do
+-- >   set "hello" "world"
+runRedisDB :: (MonadIO m, MonadState app m) =>
+               Lens app (Snaplet RedisDB) -> Redis a -> m a
+runRedisDB snaplet action = do
+  c <- gets $ getL (connection . snapletValue . snaplet)
+  liftIO $ runRedis c action
 
 
 ------------------------------------------------------------------------------
--- | Make RedisDB snaplet and initialize database connection. See
--- 'Data.Pool.createPool' for explanation of pool/stripe size values.
+-- | Make RedisDB snaplet and initialize database connection.
 --
 -- > appInit :: SnapletInit MyApp MyApp
 -- > appInit = makeSnaplet "app" "App with Redis child snaplet" Nothing $
 -- >           do
 -- >             d <- nestSnaplet "" database $
--- >                                 redisDBInit "127.0.0.1" "6379" 5 5 60
+-- >                                 redisDBInit defaultConnectInfo
 -- >             return $ MyApp d
-redisDBInit :: String -- ^ Redis host.
-            -> String -- ^ Redis port.
-            -> Int -- ^ Connection pool size (stripe count).
-            -> Int -- ^ Stripe size (connections per stripe count).
-            -> NominalDiffTime -- ^ Keep unused connection open for that long.
+redisDBInit :: ConnectInfo -- ^ Information for connnecting to a Redis server. 
             -> SnapletInit b RedisDB
-redisDBInit host port poolSize subpoolSize keepAlive =
+redisDBInit connInfo =
     makeSnaplet "snaplet-redis" description Nothing $ do
-      pool <- liftIO $
-              createPool (connect host port) disconnect
-                         poolSize keepAlive subpoolSize
-      return $ RedisDB pool
+      conn <- liftIO $ connect connInfo
+      return $ RedisDB conn

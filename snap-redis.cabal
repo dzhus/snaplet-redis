@@ -7,7 +7,7 @@ Name:                snap-redis
 -- The package version. See the Haskell package versioning policy
 -- (http://www.haskell.org/haskellwiki/Package_versioning_policy) for
 -- standards guiding when and how versions should be incremented.
-Version:             0.1
+Version:             0.2
 
 -- A short (one-line) description of the package.
 Synopsis:            Redis support for Snap framework
@@ -58,13 +58,11 @@ Library
     base >= 4 && < 5,
     data-lens >= 2.0.1 && < 2.1,
     data-lens-template >= 2.1 && < 2.2,
-    MonadCatchIO-transformers >= 0.2.1 && < 0.3,
+    hedis == 0.3.*,
     mtl >= 2 && < 3,
-    redis == 0.12.*,
-    resource-pool-catchio == 0.2.*,
     snap == 0.7.*,
     text == 0.11.*,
-    time >= 1.1 && < 1.5
+    transformers == 0.2.*
   
   -- Modules not exported by this package.
   -- Other-modules:       
