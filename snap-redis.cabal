@@ -1,5 +1,5 @@
 Name:                snaplet-redis
-Version:             0.2
+Version:             0.1
 Synopsis:            Redis support for Snap Framework
 Description:         This package provides a snaplet which wraps Redis
                      interface as implemented by Hedis library. Inline
