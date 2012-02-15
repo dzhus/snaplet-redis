@@ -13,10 +13,14 @@ Maintainer:          dima@dzhus.org
 Category:            Web
 
 Build-type:          Simple
-Cabal-version:       >=1.2
+Cabal-version:       >=1.6
+
+source-repository head
+  type:     git
+  location: git://github.com/dzhus/snaplet-redis.git
 
 Library
-  ghc-options: -O2 -Wall
+  ghc-options: -Wall
   hs-source-dirs: src
 
   Exposed-modules:   Snap.Snaplet.RedisDB
