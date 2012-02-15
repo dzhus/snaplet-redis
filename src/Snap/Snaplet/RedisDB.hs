@@ -42,9 +42,9 @@ poolSize = 5
 subpoolSize = 5
 
 ------------------------------------------------------------------------------
--- | Snaplet's data type. DB connection pool is stored.
+-- | Snaplet's state data type
 data RedisDB = RedisDB
-    { _dbPool :: Pool Redis
+    { _dbPool :: Pool Redis -- ^ DB connection pool.
     }
 
 makeLens ''RedisDB
@@ -52,7 +52,9 @@ makeLens ''RedisDB
 ------------------------------------------------------------------------------
 -- | Perform action using Redis connection from RedisDB snaplet pool.
 --
--- @todo Implement WithRedis instance for apps with this.
+-- 
+-- > withRedisDB database $ \db -> do
+-- >   r <- liftIO $ hgetall db key
 withRedisDB :: (MonadCatchIO m, MonadState app m) => Lens app (Snaplet RedisDB) -> (Redis -> m b) -> m b
 withRedisDB snaplet action = do
   p <- gets $ getL (dbPool . snapletValue . snaplet)
@@ -61,7 +63,15 @@ withRedisDB snaplet action = do
 
 ------------------------------------------------------------------------------
 -- | Make RedisDB snaplet and initialize database connection.
-redisDBInit :: String -> String -> SnapletInit b RedisDB
+--
+-- > appInit :: SnapletInit MyApp MyApp
+-- > appInit = makeSnaplet "app" "Application with Redis child snaplet" Nothing $
+-- >           do
+-- >             d <- nestSnaplet "" database $ redisDBInit "127.0.0.1" "6379"
+-- >             return $ MyApp d
+redisDBInit :: String -- ^ Redis host.
+            -> String -- ^ Redis port.
+            -> SnapletInit b RedisDB
 redisDBInit host port = makeSnaplet "snaplet-redis" description Nothing $ do
   pool <- liftIO $ 
     createPool (connect host port) disconnect poolSize keepAlive subpoolSize
