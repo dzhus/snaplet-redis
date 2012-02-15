@@ -63,7 +63,6 @@ Library
     redis == 0.12.*,
     resource-pool-catchio == 0.2.*,
     snap == 0.7.*,
-    snap-core == 0.7.*,
     text == 0.11.*,
     time >= 1.1 && < 1.5
   

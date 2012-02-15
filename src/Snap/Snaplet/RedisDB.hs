@@ -17,7 +17,6 @@ import Prelude hiding ((.))
 import Control.Category ((.))
 import Control.Monad.CatchIO
 import Control.Monad.State
-import Control.Monad.Trans
 
 import Data.Lens.Common
 import Data.Lens.Template
@@ -28,7 +27,6 @@ import Database.Redis.Redis
 
 import Data.Time.Clock
 
-import Snap.Core
 import Snap.Snaplet
 
 
