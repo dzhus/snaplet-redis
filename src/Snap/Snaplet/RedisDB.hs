@@ -38,6 +38,7 @@ data RedisDB = RedisDB
 
 makeLens ''RedisDB
 
+
 ------------------------------------------------------------------------------
 -- | Perform action using Redis connection from RedisDB snaplet pool
 -- (wrapper for 'Database.Redis.runRedis').

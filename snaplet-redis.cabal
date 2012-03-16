@@ -32,7 +32,7 @@ Library
     data-lens-template  >= 2.1 && < 2.2,
     hedis               == 0.3.*,
     mtl                 >= 2 && < 3,
-    snap                >= 0.7.1 && < 0.8,
+    snap                == 0.8.*,
     text                == 0.11.*,
     transformers        == 0.2.*
   
