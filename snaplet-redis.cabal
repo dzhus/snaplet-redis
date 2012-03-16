@@ -11,6 +11,7 @@ License-file:        LICENSE
 Author:              Dmitry Dzhus
 Maintainer:          dima@dzhus.org
 Category:            Web
+stability:           stable
 
 Build-type:          Simple
 Cabal-version:       >=1.6
