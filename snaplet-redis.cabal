@@ -10,7 +10,7 @@ License:             BSD3
 License-file:        LICENSE
 Author:              Dmitry Dzhus
 Maintainer:          dima@dzhus.org
-Category:            Web
+Category:            Web, Snap
 stability:           stable
 
 Build-type:          Simple
