@@ -26,11 +26,6 @@ import Snap.Snaplet
 
 
 ------------------------------------------------------------------------------
--- | Description text used in redisDBInit as makeSnaplet argument.
-description :: Text
-description = "Redis snaplet."
-
-------------------------------------------------------------------------------
 -- | Snaplet's state data type
 data RedisDB = RedisDB
     { _connection :: Connection -- ^ DB connection pool.
@@ -61,9 +56,9 @@ runRedisDB snaplet action = do
 -- >             d <- nestSnaplet "" database $
 -- >                                 redisDBInit defaultConnectInfo
 -- >             return $ MyApp d
-redisDBInit :: ConnectInfo -- ^ Information for connnecting to a Redis server. 
+redisDBInit :: ConnectInfo -- ^ Information for connnecting to a Redis server.
             -> SnapletInit b RedisDB
 redisDBInit connInfo =
-    makeSnaplet "snaplet-redis" description Nothing $ do
+    makeSnaplet "snaplet-redis" "Redis snaplet." Nothing $ do
       conn <- liftIO $ connect connInfo
       return $ RedisDB conn
