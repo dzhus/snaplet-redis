@@ -29,7 +29,7 @@ Library
   
   Build-depends:
     base                >= 4 && < 5,
-    data-lens           >= 2.0.1 && < 2.1,
+    data-lens           >= 2.0.1 && < 2.11,
     data-lens-template  >= 2.1 && < 2.2,
     hedis               == 0.5.*,
     mtl                 >= 2 && < 3,
