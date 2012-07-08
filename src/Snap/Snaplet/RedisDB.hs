@@ -7,9 +7,11 @@ Redis DB snaplet.
 
 -}
 
-module Snap.Snaplet.RedisDB (RedisDB
-                            , runRedisDB
-                            , redisDBInit)
+module Snap.Snaplet.RedisDB
+    (RedisDB
+    , runRedisDB
+    , redisDBInit)
+
 where
 
 import Prelude hiding ((.))
