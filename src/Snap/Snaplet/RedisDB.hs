@@ -20,7 +20,6 @@ import Control.Monad.State
 
 import Data.Lens.Common
 import Data.Lens.Template
-import Data.Text (Text)
 
 import Database.Redis
 

@@ -34,6 +34,5 @@ Library
     hedis               == 0.6.*,
     mtl                 >= 2 && < 3,
     snap                == 0.9.*,
-    text                == 0.11.*,
     transformers        == 0.3.*
   
