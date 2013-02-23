@@ -1,5 +1,5 @@
 Name:                snaplet-redis
-Version:             0.1.0.2
+Version:             0.1.0.3
 Synopsis:            Redis support for Snap Framework
 Description:         This package provides a snaplet which exposes
                      interface to Redis in-memory key-value storage as
@@ -30,9 +30,8 @@ Library
 
   Build-depends:
     base                >= 4 && < 5,
-    data-lens           >= 2.0.1 && < 2.11,
-    data-lens-template  >= 2.1 && < 2.2,
+    lens                == 3.8.*,
     hedis               == 0.6.*,
     mtl                 >= 2 && < 3,
-    snap                == 0.9.*,
+    snap                == 0.11.*,
     transformers        == 0.3.*

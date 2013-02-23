@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE Rank2Types #-}
 
 {-|
 
@@ -14,12 +15,8 @@ module Snap.Snaplet.RedisDB
 
 where
 
-import Prelude hiding ((.))
-import Control.Category ((.))
+import Control.Lens
 import Control.Monad.State
-
-import Data.Lens.Common
-import Data.Lens.Template
 
 import Database.Redis
 
@@ -32,7 +29,7 @@ data RedisDB = RedisDB
     { _connection :: Connection -- ^ DB connection pool.
     }
 
-makeLens ''RedisDB
+makeLenses ''RedisDB
 
 
 ------------------------------------------------------------------------------
@@ -42,9 +39,9 @@ makeLens ''RedisDB
 -- > runRedisDB database $ do
 -- >   set "hello" "world"
 runRedisDB :: (MonadIO m, MonadState app m) =>
-               Lens app (Snaplet RedisDB) -> Redis a -> m a
+               Simple Lens app (Snaplet RedisDB) -> Redis a -> m a
 runRedisDB snaplet action = do
-  c <- gets $ getL (connection . snapletValue . snaplet)
+  c <- gets $ view (snaplet . snapletValue . connection)
   liftIO $ runRedis c action
 
 
