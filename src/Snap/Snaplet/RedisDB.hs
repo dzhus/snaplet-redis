@@ -51,6 +51,18 @@ runRedisDB snaplet action = do
 
 ------------------------------------------------------------------------------
 -- | Make RedisDB snaplet and initialize database connection from snaplet config file.
+-- You can put options in a "redis" section of application config (e.g. ./devel.cfg)
+-- or into a main section of a snaplet config (e.g. ./snaplets/redis/devel.cfg).
+--
+-- Every field is optional and defaults to defaultConnectInfo values.
+-- 
+-- > redis {
+-- >     host = "192.168.0.42"
+-- >     port = 31415
+-- >     auth = "i am so secret"
+-- >     max_connections = 1
+-- >     max_idle_time = 0.5
+-- > }
 --
 -- > appInit :: SnapletInit MyApp MyApp
 -- > appInit = makeSnaplet "app" "App with Redis child snaplet" Nothing $
