@@ -11,7 +11,8 @@ Redis DB snaplet.
 module Snap.Snaplet.RedisDB
     (RedisDB
     , runRedisDB
-    , redisDBInit)
+    , redisDBInit
+    , redisDBConf)
 
 where
 
@@ -19,6 +20,9 @@ import Control.Lens
 import Control.Monad.State
 
 import Database.Redis
+import Network.Socket (PortNumber(..))
+import Data.Configurator as C
+import Data.Maybe
 
 import Snap.Snaplet
 
@@ -44,6 +48,48 @@ runRedisDB snaplet action = do
   c <- gets $ view (snaplet . snapletValue . connection)
   liftIO $ runRedis c action
 
+
+------------------------------------------------------------------------------
+-- | Make RedisDB snaplet and initialize database connection from snaplet config file.
+-- You can put options in a "redis" section of application config (e.g. ./devel.cfg)
+-- or into a main section of a snaplet config (e.g. ./snaplets/redis/devel.cfg).
+--
+-- Every field is optional and defaults to defaultConnectInfo values.
+-- 
+-- > redis {
+-- >     host = "192.168.0.42"
+-- >     port = 31415
+-- >     auth = "i am so secret"
+-- >     max_connections = 1
+-- >     max_idle_time = 0.5
+-- > }
+--
+-- > appInit :: SnapletInit MyApp MyApp
+-- > appInit = makeSnaplet "app" "App with Redis child snaplet" Nothing $
+-- >           do
+-- >             d <- nestSnaplet "redis" database redisDBInitConf
+-- >             return $ MyApp d
+redisDBInitConf :: SnapletInit b RedisDB
+redisDBInitConf = makeSnaplet "redis" "Redis snaplet." Nothing $ do
+    config <- getSnapletUserConfig
+
+    connInfo <- liftIO $ do
+        cHost <- C.lookup config "host"
+        cPort <- C.lookup config "port"
+        cAuth <- C.lookup config "auth"
+        cCons <- C.lookup config "max_connections"
+        cIdle <- C.lookup config "max_idle_time"
+
+        let def = defaultConnectInfo
+        return $ def { connectHost = fromMaybe (connectHost def) cHost
+                     , connectPort = maybe (connectPort def) (PortNumber . PortNum) cPort
+                     , connectAuth = cAuth
+                     , connectMaxConnections = fromMaybe (connectMaxConnections def) cCons
+                     , connectMaxIdleTime = maybe (connectMaxIdleTime def) (fromRational) cIdle
+                     }
+
+    conn <- liftIO $ connect connInfo
+    return $ RedisDB conn
 
 ------------------------------------------------------------------------------
 -- | Make RedisDB snaplet and initialize database connection.
