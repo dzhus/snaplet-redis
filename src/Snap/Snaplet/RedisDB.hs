@@ -50,9 +50,10 @@ runRedisDB snaplet action = do
 
 
 ------------------------------------------------------------------------------
--- | Make RedisDB snaplet and initialize database connection from snaplet config file.
--- You can put options in a "redis" section of application config (e.g. ./devel.cfg)
--- or into a main section of a snaplet config (e.g. ./snaplets/redis/devel.cfg).
+-- | Make RedisDB snaplet and initialize database connection from
+-- snaplet config file. Options are read from the "redis" section of
+-- the application config (e.g. ./devel.cfg) or from the main section
+-- of the Redis snaplet config (e.g. ./snaplets/redis/devel.cfg).
 --
 -- Every field is optional and defaults to defaultConnectInfo values.
 -- 
@@ -82,10 +83,13 @@ redisDBInitConf = makeSnaplet "redis" "Redis snaplet." Nothing $ do
 
         let def = defaultConnectInfo
         return $ def { connectHost = fromMaybe (connectHost def) cHost
-                     , connectPort = maybe (connectPort def) (PortNumber . PortNum) cPort
+                     , connectPort =
+                       maybe (connectPort def) (PortNumber . PortNum) cPort
                      , connectAuth = cAuth
-                     , connectMaxConnections = fromMaybe (connectMaxConnections def) cCons
-                     , connectMaxIdleTime = maybe (connectMaxIdleTime def) (fromRational) cIdle
+                     , connectMaxConnections =
+                       fromMaybe (connectMaxConnections def) cCons
+                     , connectMaxIdleTime =
+                       maybe (connectMaxIdleTime def) (fromRational) cIdle
                      }
 
     conn <- liftIO $ connect connInfo
