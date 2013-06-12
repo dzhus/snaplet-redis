@@ -12,7 +12,7 @@ module Snap.Snaplet.RedisDB
     (RedisDB
     , runRedisDB
     , redisDBInit
-    , redisDBConf)
+    , redisDBInitConf)
 
 where
 

@@ -34,5 +34,6 @@ Library
     lens                >= 3.8 && < 3.10,
     hedis               == 0.6.*,
     mtl                 >= 2 && < 3,
+    network             == 2.4.*,
     snap                >= 0.11 && < 0.13,
     transformers        == 0.3.*
