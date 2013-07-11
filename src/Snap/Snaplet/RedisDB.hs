@@ -11,6 +11,7 @@ Redis DB snaplet.
 module Snap.Snaplet.RedisDB
     (RedisDB
     , runRedisDB
+    , redisConnection
     , redisDBInit
     , redisDBInitConf)
 
@@ -35,6 +36,10 @@ data RedisDB = RedisDB
 
 makeLenses ''RedisDB
 
+------------------------------------------------------------------------------
+-- | A lens to retrieve the connection to redis from the 'RedisDB' wrapper.
+redisConnection :: Simple Lens RedisDB Connection
+redisConnection = connection
 
 ------------------------------------------------------------------------------
 -- | Perform action using Redis connection from RedisDB snaplet pool
@@ -56,7 +61,7 @@ runRedisDB snaplet action = do
 -- of the Redis snaplet config (e.g. ./snaplets/redis/devel.cfg).
 --
 -- Every field is optional and defaults to defaultConnectInfo values.
--- 
+--
 -- > redis {
 -- >     host = "192.168.0.42"
 -- >     port = 31415
