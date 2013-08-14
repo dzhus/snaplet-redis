@@ -37,7 +37,8 @@ data RedisDB = RedisDB
 makeLenses ''RedisDB
 
 ------------------------------------------------------------------------------
--- | A lens to retrieve the connection to redis from the 'RedisDB' wrapper.
+-- | A lens to retrieve the connection to Redis from the 'RedisDB'
+-- wrapper.
 redisConnection :: Simple Lens RedisDB Connection
 redisConnection = connection
 
