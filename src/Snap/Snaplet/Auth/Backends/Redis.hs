@@ -150,24 +150,15 @@ redisSave r u =
                TxError e -> return $ Left $ AuthError e
            Left (Error e) -> return $ Left $ AuthError (show e)
 
-{-AA TODO: implement these functions-}
 redisDestroy :: RedisAuthManager -> AuthUser -> IO ()
 redisDestroy r u =
     case (userId u) of
-      Nothing -> undefined
+      Nothing -> return ()
       Just uid ->
         do runRedis (conn r) $ do
             del [userHashKey $ userLogin u,
                  (userIdKey $ unUid uid)]
             return ()
-
-redisLookupByLogin :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
-redisLookupByLogin r ul =
-  do runRedis (conn r) $ do
-      uhash <- hgetall (userHashKey ul)
-      case uhash of
-        Right h -> undefined
-        Left reply -> undefined
 
 redisLookupByUserId :: RedisAuthManager -> UserId -> IO (Maybe AuthUser)
 redisLookupByUserId r uid =
@@ -177,14 +168,23 @@ redisLookupByUserId r uid =
         Right (Just userlogin) -> liftIO $ redisLookupByLogin r (T.pack . show $ userlogin)
         _ -> return Nothing
 
+{-AA TODO: implement these functions-}
+redisLookupByLogin :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
+redisLookupByLogin r ul =
+  do runRedis (conn r) $ do
+      uhash <- hgetall (userHashKey ul)
+      case uhash of
+        Right h -> undefined
+        Left reply -> undefined
+
 redisLookupByRememberToken :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
 redisLookupByRememberToken = undefined
 
 instance IAuthBackend RedisAuthManager where
   save = redisSave
-  destroy = error "RedisAuthManager: destroy is not yet implemented"
-  lookupByUserId mgr uid = error "RedisAuthManager: lookupByUserId is not yet implemented"
-  lookupByLogin mgr login = error "RedisAuthManager: lookupByLogin is not yet implemented"
+  destroy = redisDestroy
+  lookupByUserId = redisLookupByUserId
+  lookupByLogin = redisLookupByLogin
   lookupByRememberToken mgr token = error "RedisAuthManager: lookupByRememberToken is not yet implemented"
 
 nextUserID :: AuthUser -> Redis (Either Reply T.Text)
