@@ -39,5 +39,7 @@ Library
     time,
     text,
     containers,
+    unordered-containers,
     bytestring,
-    clientsession
+    clientsession,
+    aeson

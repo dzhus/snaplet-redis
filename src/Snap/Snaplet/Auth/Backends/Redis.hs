@@ -10,11 +10,12 @@ module Snap.Snaplet.Auth.Backends.Redis
 
 import           Control.Applicative
 import           Control.Monad.State hiding (get)
-import qualified Data.ByteString.Lazy as LB
 import qualified Data.ByteString as B
-import qualified Data.Map as HM
-import           Data.Map (Map)
+import qualified Data.Aeson (Value)
+import           Data.HashMap.Strict   (HashMap)
+import qualified Data.HashMap.Strict   as HM
 import           Data.Maybe (fromJust, fromMaybe, isJust)
+import           Data.Traversable
 import           Data.Text (Text)
 import qualified Data.Text as T
 import           Data.Text.Encoding as E
@@ -26,6 +27,7 @@ import           Snap.Snaplet
 import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Session
 
+import           Debug.Trace
 
 
 ------------------------------------------------------------------------------
@@ -35,17 +37,17 @@ initRedisAuthManager :: AuthSettings
                         -> SnapletLens b SessionManager
                             -- ^ Lens into a 'SessionManager' auth snaplet will
                            -- use
-                        -> Connection
-                            -- ^ Redis Connection
+                        -> ConnectInfo
+                            -- ^ Redis ConnectInfo
                         -> SnapletInit b (AuthManager b)
-initRedisAuthManager s l conn = do
+initRedisAuthManager s l c = do
     makeSnaplet
         "RedisAuthManager"
         "A snaplet providing user authentication using a Redis backend"
         Nothing $ liftIO $ do
             rng <- liftIO mkRNG
             key <- getKey (asSiteKey s)
-            redisMgr <- mkRedisAuthMgr conn
+            redisMgr <- mkRedisAuthMgr c
             return $! AuthManager {
                          backend               = redisMgr
                        , session               = l
@@ -58,41 +60,14 @@ initRedisAuthManager s l conn = do
                        , randomNumberGenerator = rng
                        }
 
-{-mkRedisAuthMgr :: Connection -> IO RedisAuthManager-}
-mkRedisAuthMgr conn = return RedisAuthManager { conn = conn }
+mkRedisAuthMgr :: ConnectInfo -> IO RedisAuthManager
+mkRedisAuthMgr c = do
+    conn <- connect c
+    return RedisAuthManager { conn = conn }
 
 data RedisAuthManager = RedisAuthManager {
                       conn :: Connection
                       }
-
-{--------------------------------------------------------------------------------}
-{--- | Type representing the concept of a User in your application.-}
-{-data AuthUser = AuthUser-}
-    {-{ userId               :: Maybe UserId-}
-    {-, userLogin            :: Text-}
-
-    {--- We have to have an email field for password reset functionality, but we-}
-    {--- don't want to force users to log in with their email address.-}
-    {-, userEmail            :: Maybe Text-}
-    {-, userPassword         :: Maybe Password-}
-    {-, userActivatedAt      :: Maybe UTCTime-}
-    {-, userSuspendedAt      :: Maybe UTCTime-}
-    {-, userRememberToken    :: Maybe Text-}
-    {-, userLoginCount       :: Int-}
-    {-, userFailedLoginCount :: Int-}
-    {-, userLockedOutUntil   :: Maybe UTCTime-}
-    {-, userCurrentLoginAt   :: Maybe UTCTime-}
-    {-, userLastLoginAt      :: Maybe UTCTime-}
-    {-, userCurrentLoginIp   :: Maybe ByteString-}
-    {-, userLastLoginIp      :: Maybe ByteString-}
-    {-, userCreatedAt        :: Maybe UTCTime-}
-    {-, userUpdatedAt        :: Maybe UTCTime-}
-    {-, userResetToken       :: Maybe Text-}
-    {-, userResetRequestedAt :: Maybe UTCTime-}
-    {-, userRoles            :: [Role]-}
-    {-, userMeta             :: HashMap Text Value-}
-    {-}-}
-  {-deriving (Show,Eq)-}
 
 userHashKey :: Text -> B.ByteString
 {-userHashKey user = B.append (B.fromString "user:") (E.encodeUtf8 user)-}
@@ -100,6 +75,9 @@ userHashKey user = B.append "user:" (E.encodeUtf8 user)
 
 userIdKey :: Text -> B.ByteString
 userIdKey userid = enc $ T.append (T.pack $ "userid:") userid
+
+userTokenKey :: Text -> B.ByteString
+userTokenKey usertoken = enc $ T.append (T.pack $ "usertoken:") usertoken
 
 enc :: Text -> B.ByteString
 enc = E.encodeUtf8
@@ -110,11 +88,24 @@ encMaybeUTCTime _ = ""
 
 encRoles :: [Role] -> B.ByteString
 encRoles (r:rs) = enc $ T.pack $ foldl (\x y -> (show x) ++ "," ++ (show y)) (show r) rs
+encRoles [] = ""
+
+decodeRoles :: B.ByteString -> [Role] 
+decodeRoles s = map (read . show) $ T.splitOn (T.pack ",") (T.pack . show $ s)
+
+{- Check if user exists and incr next:userid if not -}
+nextUserID :: AuthUser -> Redis (Either Reply T.Text)
+nextUserID u = case (userId u) of
+                 Just uid -> return $ Right $ unUid uid
+                 Nothing -> do
+                   i <- incr "next.userId"
+                   case i of
+                     Right i -> return $ Right $ T.pack $ show i
+                     Left e -> return $ Left e
 
 redisSave :: RedisAuthManager -> AuthUser -> IO (Either AuthFailure AuthUser)
 redisSave r u = 
     do runRedis (conn r) $ do
-         {- AA TODO: Check if user exists and incr next:userid if not -}
          nexti <- nextUserID u
          case nexti of
            Right checkedUserId -> do
@@ -139,11 +130,13 @@ redisSave r u =
                  ("userResetToken",         (enc $ fromMaybe "" $ userResetToken u)),
                  ("userResetRequestedAt",   (encMaybeUTCTime $ userResetRequestedAt u)),
                  ("userRoles",              (encRoles $ userRoles u)),
-                 ("userMeta",               (enc $ T.pack . show $ userMeta u))
+                 ("userMeta",               (enc $ T.pack . show $ HM.toList $ userMeta u))
                 ]
                {- set "userid:1000" = "bob" -}
-               set (userIdKey checkedUserId) (enc $ userLogin u)
-               return $ res1
+               res2 <- set (userIdKey checkedUserId) (enc $ userLogin u)
+               {- set "usertoken:XXXX" = "bob" -}
+               traverse (\t -> set (userTokenKey t) (enc $ userLogin u)) $ (userRememberToken u)
+               return $ (,) <$> res1 <*> res2
              case res of
                TxSuccess _ -> return $ Right u
                TxAborted -> return $ Left $ AuthError "redis transaction aborted"
@@ -168,30 +161,107 @@ redisLookupByUserId r uid =
         Right (Just userlogin) -> liftIO $ redisLookupByLogin r (T.pack . show $ userlogin)
         _ -> return Nothing
 
-{-AA TODO: implement these functions-}
 redisLookupByLogin :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
 redisLookupByLogin r ul =
   do runRedis (conn r) $ do
       uhash <- hgetall (userHashKey ul)
       case uhash of
-        Right h -> undefined
-        Left reply -> undefined
+        Right [] -> return $ Nothing
+        Right h -> return $ Just $ authUserFromHash h
+        Left _ -> return Nothing
+
+utcTimeFromByteString :: B.ByteString -> Maybe UTCTime
+utcTimeFromByteString s = case s of
+                            "" -> Nothing
+                            _ -> Just $ (read . show $ s)
+
+{-"authUserFromHash h : 
+[(\"userRememberToken\",\"\"),
+(\"userSuspendedAt\",\"\"),
+(\"userCreatedAt\",\"2014-06-28 06:43:15.653473 UTC\"),
+(\"userCurrentLoginIp\",\"\"),
+(\"userEmail\",\"\"),
+(\"userUpdatedAt\",\"2014-06-28 06:43:15.653473 UTC\"),
+(\"userLogin\",\"bob\"),
+(\"userId\",\"2\"),
+(\"userFailedLoginCount\",\"0\"),
+(\"userLastLoginIp\",\"\"),
+(\"userActivatedAt\",\"\"),
+(\"userCurrentLoginAt\",\"\"),
+(\"userPassword\",\"Encrypted \\\"sha256|12|E5fK7/QfmwpxGcRG7DdDaw==|5uvnJHbS2DbVjgmPzkn8v/cI9S52Uo1hJ+JDItCdeI4=\\\"\"),
+(\"userResetRequestedAt\",\"\"),
+(\"userMeta\",\"[]\"),
+(\"userRoles\",\"\"),
+(\"userLockedOutUntil\",\"\"),
+(\"userLoginCount\",\"0\"),
+(\"userLastLoginAt\",\"\"),
+(\"userResetToken\",\"\")]"
+-}
+authUserFromHash :: [(B.ByteString, B.ByteString)] -> AuthUser
+authUserFromHash  [("userId",                 _userId),
+                   ("userLogin",              _userLogin),
+                   ("userEmail",              _userEmail),
+                   ("userPassword",           _userPassword),
+                   ("userActivatedAt",        _userActivatedAt),
+                   ("userSuspendedAt",        _userSuspendedAt),
+                   ("userRememberToken",      _userRememberToken),
+                   ("userLoginCount",         _userLoginCount),
+                   ("userFailedLoginCount",   _userFailedLoginCount),
+                   ("userLockedOutUntil",     _userLockedOutUntil),
+                   ("userCurrentLoginAt",     _userCurrentLoginAt),
+                   ("userLastLoginAt",        _userLastLoginAt),
+                   ("userCurrentLoginIp",     _userCurrentLoginIp),
+                   ("userLastLoginIp",        _userLastLoginIp),
+                   ("userCreatedAt",          _userCreatedAt),
+                   ("userUpdatedAt",          _userUpdatedAt),
+                   ("userResetToken",         _userResetToken),
+                   ("userResetRequestedAt",   _userResetRequestedAt),
+                   ("userRoles",              _userRoles),
+                   ("userMeta",               _userMeta)
+                  ] = AuthUser { userId               = Just $ UserId (T.pack . show $ _userId)
+                               , userLogin            = (T.pack . show $ _userLogin)
+                               , userEmail            = case _userEmail of
+                                                          "" -> Nothing
+                                                          _ -> Just $ (T.pack . show $ _userEmail)
+                               , userPassword         = Just $ (Encrypted _userPassword)
+                               , userActivatedAt      = utcTimeFromByteString _userActivatedAt
+                               , userSuspendedAt      = utcTimeFromByteString _userSuspendedAt
+                               , userRememberToken    = case _userRememberToken of
+                                                          "" -> Nothing
+                                                          _ -> Just $ (T.pack . show $ _userRememberToken)
+                               , userLoginCount       = (read . show $ _userLoginCount)
+                               , userFailedLoginCount = (read . show $ _userFailedLoginCount)
+                               , userLockedOutUntil   = utcTimeFromByteString _userLockedOutUntil
+                               , userCurrentLoginAt   = utcTimeFromByteString _userCurrentLoginAt
+                               , userLastLoginAt      = utcTimeFromByteString _userLastLoginAt
+                               , userCurrentLoginIp   = Just _userCurrentLoginIp
+                               , userLastLoginIp      = Just _userLastLoginIp
+                               , userCreatedAt        = utcTimeFromByteString _userCreatedAt
+                               , userUpdatedAt        = utcTimeFromByteString _userUpdatedAt
+                               , userResetToken       = Just $ (T.pack . show $ _userResetToken)
+                               , userResetRequestedAt = utcTimeFromByteString _userResetRequestedAt
+                               , userRoles            = decodeRoles _userRoles
+                               {-AA TODO: use toList and fromList for the HashMap serializing.
+                               - the snaplet-postgresql-simple project
+                               - doesnt handle userMeta either.-}
+                               , userMeta             = HM.empty
+                             }
+authUserFromHash h = traceShow ("authUserFromHash h : " ++ (show h))
+                               error "authUserFromHash unknown pattern matching"
 
 redisLookupByRememberToken :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
-redisLookupByRememberToken = undefined
+redisLookupByRememberToken r utkn =
+  do runRedis (conn r) $ do
+      ul <- get (userTokenKey utkn)
+      case ul of
+        Right (Just userlogin) -> liftIO $ redisLookupByLogin r (T.pack . show $ userlogin)
+        _ -> return Nothing
 
 instance IAuthBackend RedisAuthManager where
   save = redisSave
   destroy = redisDestroy
   lookupByUserId = redisLookupByUserId
   lookupByLogin = redisLookupByLogin
-  lookupByRememberToken mgr token = error "RedisAuthManager: lookupByRememberToken is not yet implemented"
+  lookupByRememberToken = redisLookupByRememberToken 
 
-nextUserID :: AuthUser -> Redis (Either Reply T.Text)
-nextUserID u = case (userId u) of
-                 Just uid -> return $ Right $ unUid uid
-                 Nothing -> do
-                   i <- incr "next.userId"
-                   case i of
-                     Right i -> return $ Right $ T.pack $ show i
-                     Left e -> return $ Left e
+
