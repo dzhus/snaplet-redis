@@ -143,12 +143,10 @@ redisSave r u =
                   [("userId",                 enc $ checkedUserId),
                    ("userLogin",              enc $ userLogin u),
                    ("userEmail",              enc $ fromMaybe "" $ userEmail u),
-                   {-("userPassword",           enc $ maybe "" (T.pack . show) $ userPassword u), [> AA TODO: encrypt as necessary <]-}
                    ("userPassword",           encPassword (userPassword u)),
                    ("userActivatedAt",        encMaybeUTCTime $ userActivatedAt u),
                    ("userSuspendedAt",        encMaybeUTCTime $ userSuspendedAt u),
                    ("userRememberToken",      enc $ fromMaybe "" $ userRememberToken u),
-                   {-("userLoginCount",         enc $ T.pack . show $ userLoginCount u),-}
                    ("userLoginCount",         encodeInt $ userLoginCount u),
                    ("userFailedLoginCount",   encodeInt $ userFailedLoginCount u),
                    ("userLockedOutUntil",     encMaybeUTCTime $ userLockedOutUntil u),
@@ -213,7 +211,6 @@ hmlookup k hm = case (HM.lookup k hm) of
 authUserFromHash :: [(B.ByteString, B.ByteString)] -> AuthUser
 authUserFromHash [] = error "authUserFromHash error: Empty hashmap"
 authUserFromHash l = 
-    {-AA TODO: Crashing somewhere in here?-}
     let hm = traceShow ("authUserFromHash l:" ++ (show l)) HM.fromList l
          in AuthUser { userId               = Just $ UserId (T.pack . show $ hmlookup "userId" hm)
                      , userLogin            = (T.pack . show $ hmlookup "userLogin" hm)
