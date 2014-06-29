@@ -198,9 +198,9 @@ redisLookupByLogin r ul =
       uhash <- traceShow (B.append "redisLookupByLogin  ul: " (enc ul)) 
                          hgetall (userHashKey ul)
       case uhash of
-        Right [] -> return Nothing
-        Left _ -> return Nothing
-        Right h -> return $ Just $ authUserFromHash h
+        Right [] -> traceShow "redisLookupByLogin - Right []" $ return Nothing
+        Left _ -> traceShow "redisLookupByLogin - Left _" $ return Nothing
+        Right h -> traceShow "redisLookupByLogin - Right h" $ return $ Just $ authUserFromHash h
 
 hmlookup :: B.ByteString -> (HashMap B.ByteString B.ByteString) -> B.ByteString
 hmlookup k hm = case (HM.lookup k hm) of
