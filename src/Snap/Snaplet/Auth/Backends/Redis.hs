@@ -189,7 +189,7 @@ redisLookupByUserId r uid =
       ul <- traceShow (B.append "redisLookupByUserId  uid: " (enc . unUid $ uid)) 
                       get (userIdKey $ unUid uid)
       case ul of
-        Right (Just userlogin) -> liftIO $ redisLookupByLogin r (T.pack . show $ userlogin)
+        Right (Just userlogin) -> liftIO $ redisLookupByLogin r (dec userlogin)
         _ -> return Nothing
 
 redisLookupByLogin :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
@@ -204,16 +204,17 @@ redisLookupByLogin r ul =
 
 hmlookup :: B.ByteString -> (HashMap B.ByteString B.ByteString) -> B.ByteString
 hmlookup k hm = case (HM.lookup k hm) of
-                Just s -> traceShow ("hmlookup k: " ++ (show k) ++ " = " ++ (show s))
-                                    s
+                {-Just s -> traceShow ("hmlookup k: " ++ (show k) ++ " = " ++ (show s))-}
+                                    {-s-}
+                Just s -> s
                 Nothing -> ""
 
 authUserFromHash :: [(B.ByteString, B.ByteString)] -> AuthUser
 authUserFromHash [] = error "authUserFromHash error: Empty hashmap"
 authUserFromHash l = 
     let hm = traceShow ("authUserFromHash l:" ++ (show l)) HM.fromList l
-         in AuthUser { userId               = Just $ UserId (T.pack . show $ hmlookup "userId" hm)
-                     , userLogin            = (T.pack . show $ hmlookup "userLogin" hm)
+         in AuthUser { userId               = Just $ UserId (dec $ hmlookup "userId" hm)
+                     , userLogin            = (dec $ hmlookup "userLogin" hm)
                      , userEmail            = case hmlookup "userEmail " hm of
                                                 "" -> Nothing
                                                 email -> Just (T.pack . show $ email)
@@ -222,7 +223,7 @@ authUserFromHash l =
                      , userSuspendedAt      = decMaybeUTCTime (hmlookup "userSuspendedAt" hm)
                      , userRememberToken    = case hmlookup "userRememberToken" hm of
                                                 "" -> Nothing
-                                                token -> Just (T.pack . show $ token)
+                                                token -> Just (dec token)
                      , userLoginCount       = traceShow ("authUserFromHash userLoginCount:" ++ (show $ hmlookup "userLoginCount" hm)) 
                                                         (decodeInt (hmlookup "userLoginCount" hm))
                      , userFailedLoginCount = traceShow ("authUserFromHash userFailedLoginCount:" ++ (show $ hmlookup "userFailedLoginCount" hm)) 
@@ -234,12 +235,11 @@ authUserFromHash l =
                      , userLastLoginIp      = Just (hmlookup "userLastLoginIp" hm)
                      , userCreatedAt        = decMaybeUTCTime (hmlookup "userCreatedAt" hm)
                      , userUpdatedAt        = decMaybeUTCTime (hmlookup "userUpdatedAt" hm)
-                     , userResetToken       = Just (T.pack . show $ hmlookup "userResetToken" hm)
+                     , userResetToken       = Just (dec $ hmlookup "userResetToken" hm)
                      , userResetRequestedAt = decMaybeUTCTime (hmlookup "userResetRequestedAt" hm)
                      , userRoles            = decodeRoles (hmlookup "userRoles" hm)
                      {-AA TODO: use toList and fromList for the HashMap serializing.
-                     - the snaplet-postgresql-simple project
-                     - doesnt handle userMeta either.-}
+                     - the snaplet-postgresql-simple project doesnt handle userMeta either.-}
                      , userMeta             = HM.empty
                    }
 
@@ -249,7 +249,7 @@ redisLookupByRememberToken r utkn =
       ul <- traceShow (B.append "redisLookupByRememberToken  utkn: " (enc utkn)) 
                       get (userTokenKey utkn)
       case ul of
-        Right (Just userlogin) -> liftIO $ redisLookupByLogin r (T.pack . show $ userlogin)
+        Right (Just userlogin) -> liftIO $ redisLookupByLogin r (dec userlogin)
         _ -> return Nothing
 
 instance IAuthBackend RedisAuthManager where
