@@ -11,7 +11,6 @@ module Snap.Snaplet.Auth.Backends.Redis
 import           Control.Applicative
 import           Control.Monad.State hiding (get)
 import qualified Data.ByteString as B
-{-import qualified Data.Aeson (Value)-}
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HM
 import           Data.Maybe (fromMaybe)
@@ -27,8 +26,6 @@ import           Text.Read (readMaybe)
 import           Snap.Snaplet
 import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Session
-
-import           Debug.Trace
 
 
 ------------------------------------------------------------------------------
@@ -99,10 +96,7 @@ encMaybeUTCTime _ = ""
 decMaybeUTCTime :: B.ByteString -> Maybe UTCTime
 decMaybeUTCTime s = case s of
                             "" -> Nothing
-                            {-_ -> Just $ traceShow (B.append "decMaybeUTCTime s : " s) -}
-                                                  {-(read . T.unpack . dec $ s)-}
-                            _ -> traceShow (B.append "decMaybeUTCTime s : " s) 
-                                           (readMaybe . T.unpack . dec $ s)
+                            _ -> readMaybe . T.unpack . dec $ s
 
 encRoles :: [Role] -> B.ByteString
 encRoles (r:rs) = enc $ T.pack $ foldl (\x y -> show x ++ "," ++ show y) (show r) rs
@@ -110,21 +104,20 @@ encRoles [] = ""
 
 decodeRoles :: B.ByteString -> [Role] 
 decodeRoles "" = []
-decodeRoles s = traceShow (B.append "decodeRoles s : " s) 
-                          map (read . T.unpack) $ T.splitOn (T.pack ",") (dec s)
+decodeRoles s = map (read . T.unpack) $ T.splitOn (T.pack ",") (dec s)
 
 encPassword :: Maybe Password -> B.ByteString
-encPassword (Just (Encrypted p)) = traceShow ("encPassword p: " ++ show p) p
+encPassword (Just (Encrypted p)) = p
 encPassword (Just (ClearText _)) = error "encPassword should never encode ClearText password"
 encPassword Nothing = ""
 
 decPassword :: B.ByteString -> Maybe Password
 decPassword "" = Nothing
-decPassword p = Just $ traceShow ("decPassword - " ++ show p) (Encrypted p)
+decPassword p = Just (Encrypted p)
 
 {- Check if user exists and incr next:userid if not -}
 nextUserID :: AuthUser -> Redis (Either Reply T.Text)
-nextUserID u = case (userId u) of
+nextUserID u = case userId u of
                  Just uid -> return $ Right $ unUid uid
                  Nothing -> do
                    i <- incr "next.userId"
@@ -164,7 +157,7 @@ redisSave r u =
                {- set "userid:1000" = "bob" -}
                res2 <- set (userIdKey checkedUserId) (enc $ userLogin u)
                {- set "usertoken:XXXX" = "bob" -}
-               _ <- traverse (\t -> set (userTokenKey t) (enc $ userLogin u)) $ (userRememberToken u)
+               _ <- traverse (\t -> set (userTokenKey t) (enc $ userLogin u)) $ userRememberToken u
                return $ (,) <$> res1 <*> res2
              case res of
                TxSuccess _ -> return $ Right u
@@ -175,19 +168,18 @@ redisSave r u =
 
 redisDestroy :: RedisAuthManager -> AuthUser -> IO ()
 redisDestroy r u =
-    case (userId u) of
+    case userId u of
       Nothing -> return ()
       Just uid ->
         runRedis (conn r) $ do
             _ <- del [userHashKey $ userLogin u,
-                     (userIdKey $ unUid uid)]
+                      userIdKey $ unUid uid]
             return ()
 
 redisLookupByUserId :: RedisAuthManager -> UserId -> IO (Maybe AuthUser)
 redisLookupByUserId r uid = 
   runRedis (conn r) $ do
-      ul <- traceShow (B.append "redisLookupByUserId  uid: " (enc . unUid $ uid)) 
-                      get (userIdKey $ unUid uid)
+      ul <- get (userIdKey $ unUid uid)
       case ul of
         Right (Just userlogin) -> liftIO $ redisLookupByLogin r (dec userlogin)
         _ -> return Nothing
@@ -195,26 +187,21 @@ redisLookupByUserId r uid =
 redisLookupByLogin :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
 redisLookupByLogin r ul =
   runRedis (conn r) $ do
-      uhash <- traceShow (B.append "redisLookupByLogin  ul: " (enc ul)) 
-                         hgetall (userHashKey ul)
+      uhash <- hgetall (userHashKey ul)
       case uhash of
-        Right [] -> traceShow "redisLookupByLogin - Right []" $ return Nothing
-        Left _ -> traceShow "redisLookupByLogin - Left _" $ return Nothing
-        Right h -> traceShow "redisLookupByLogin - Right h" $ return $ Just $ authUserFromHash h
+        Right [] -> return Nothing
+        Left _ -> return Nothing
+        Right h -> return $ Just $ authUserFromHash h
 
-hmlookup :: B.ByteString -> (HashMap B.ByteString B.ByteString) -> B.ByteString
-hmlookup k hm = case (HM.lookup k hm) of
-                {-Just s -> traceShow ("hmlookup k: " ++ (show k) ++ " = " ++ (show s))-}
-                                    {-s-}
-                Just s -> s
-                Nothing -> ""
+hmlookup :: B.ByteString -> HashMap B.ByteString B.ByteString -> B.ByteString
+hmlookup k hm = fromMaybe "" $ HM.lookup k hm
 
 authUserFromHash :: [(B.ByteString, B.ByteString)] -> AuthUser
 authUserFromHash [] = error "authUserFromHash error: Empty hashmap"
 authUserFromHash l = 
-    let hm = traceShow ("authUserFromHash l:" ++ (show l)) HM.fromList l
+    let hm = HM.fromList l
          in AuthUser { userId               = Just $ UserId (dec $ hmlookup "userId" hm)
-                     , userLogin            = (dec $ hmlookup "userLogin" hm)
+                     , userLogin            = dec $ hmlookup "userLogin" hm
                      , userEmail            = case hmlookup "userEmail " hm of
                                                 "" -> Nothing
                                                 email -> Just (T.pack . show $ email)
@@ -224,10 +211,8 @@ authUserFromHash l =
                      , userRememberToken    = case hmlookup "userRememberToken" hm of
                                                 "" -> Nothing
                                                 token -> Just (dec token)
-                     , userLoginCount       = traceShow ("authUserFromHash userLoginCount:" ++ (show $ hmlookup "userLoginCount" hm)) 
-                                                        (decodeInt (hmlookup "userLoginCount" hm))
-                     , userFailedLoginCount = traceShow ("authUserFromHash userFailedLoginCount:" ++ (show $ hmlookup "userFailedLoginCount" hm)) 
-                                                        (decodeInt (hmlookup "userFailedLoginCount" hm))
+                     , userLoginCount       = decodeInt (hmlookup "userLoginCount" hm)
+                     , userFailedLoginCount = decodeInt (hmlookup "userFailedLoginCount" hm)
                      , userLockedOutUntil   = decMaybeUTCTime (hmlookup "userLockedOutUntil" hm)
                      , userCurrentLoginAt   = decMaybeUTCTime (hmlookup "userCurrentLoginAt" hm)
                      , userLastLoginAt      = decMaybeUTCTime (hmlookup "userLastLoginAt" hm)
@@ -246,8 +231,7 @@ authUserFromHash l =
 redisLookupByRememberToken :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
 redisLookupByRememberToken r utkn =
   runRedis (conn r) $ do
-      ul <- traceShow (B.append "redisLookupByRememberToken  utkn: " (enc utkn)) 
-                      get (userTokenKey utkn)
+      ul <- get (userTokenKey utkn)
       case ul of
         Right (Just userlogin) -> liftIO $ redisLookupByLogin r (dec userlogin)
         _ -> return Nothing
