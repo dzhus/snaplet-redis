@@ -3,6 +3,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+{-|
+
+This module allows you to use the auth snaplet with your user database
+stored in a Redis instance.
+
+In your initializer you'll need something like:
+> a <- nestSnaplet "auth" auth $
+>          initRedisAuthManager defAuthSettings sess defaultConnectInfo
+
+-}
 
 module Snap.Snaplet.Auth.Backends.Redis
   ( initRedisAuthManager
