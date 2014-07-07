@@ -26,7 +26,9 @@ Library
   ghc-options: -Wall
   hs-source-dirs: src
 
-  Exposed-modules:   Snap.Snaplet.RedisDB, Snap.Snaplet.Auth.Backends.Redis
+  Exposed-modules:   Snap.Snaplet.RedisDB, 
+                     Snap.Snaplet.Auth.Backends.Redis,
+                     Snap.Snaplet.Session.Backends.RedisSession
   Build-depends:
     base                >= 4 && < 5,
     configurator        == 0.2.*,
@@ -35,6 +37,7 @@ Library
     mtl                 >= 2 && < 3,
     network             >= 2.4 && < 2.6,
     snap                >= 0.11 && < 0.14,
+    snap-core,
     transformers        == 0.3.*,
     time,
     text,
@@ -42,4 +45,6 @@ Library
     unordered-containers,
     bytestring,
     clientsession,
-    aeson
+    aeson,
+    cereal,
+    syb
