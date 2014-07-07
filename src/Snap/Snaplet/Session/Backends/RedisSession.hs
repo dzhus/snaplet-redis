@@ -162,11 +162,15 @@ instance ISessionManager RedisSessionManager where
         pl <- case r of
                 Just r' -> liftIO $ do
                   runRedis con $ do
-                    res1 <- hmset (sessionKey (rsCSRFToken r'))
-                                  (map encodeTuple $ HM.toList (rsSession r'))
-                    res2 <- traverse (\i -> expire (sessionKey (rsCSRFToken r')) $ toInteger i) to
-                    ping
-                  return . Payload $ S.encode r'
+                    res <- multiExec $ do
+                      res1 <- hmset (sessionKey (rsCSRFToken r'))
+                                    (map encodeTuple $ HM.toList (rsSession r'))
+                      _ <- traverse (\i -> expire (sessionKey (rsCSRFToken r')) $ toInteger i) to
+                      return $ (,) <$> res1
+                    case res of
+                      TxSuccess _ -> return . Payload $ S.encode r'
+                      TxError e -> error e
+                      TxAborted -> error "transaction aborted"
                 Nothing -> liftIO (mkCookieSession rng) >>=
                            return . Payload . S.encode
         setPayload mgr pl
