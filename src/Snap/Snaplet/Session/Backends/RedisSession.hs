@@ -171,7 +171,11 @@ instance ISessionManager RedisSessionManager where
 
 
     --------------------------------------------------------------------------
-    reset mgr = do
+    --clear the session from redis and return a new empty one
+    reset mgr@(RedisSessionManager r _ _ _ _ con)  = do
+        case r of
+          Just r' -> liftIO $ do
+            runRedis con $ del [(sessionKey $ rsCSRFToken r')]
         cs <- liftIO $ mkCookieSession (randomNumberGenerator mgr)
         return $ mgr { session = Just cs }
 
