@@ -22,11 +22,13 @@ import           Data.Monoid
 import           Snap.Core                           (Snap)
 import           Web.ClientSession
 import           Database.Redis
+import           Data.Traversable
 ------------------------------------------------------------------------------
 import           Snap.Snaplet
 import           Snap.Snaplet.Session
 import           Snap.Snaplet.Session.SessionManager
 -------------------------------------------------------------------------------
+import Debug.Trace
 
 
 ------------------------------------------------------------------------------
@@ -135,7 +137,7 @@ instance ISessionManager RedisSessionManager where
 
     --------------------------------------------------------------------------
     --load grabs the session from redis.
-    load mgr@(RedisSessionManager _ _ _ _ _ con) = do
+    load mgr@(RedisSessionManager _ _ _ _ _ con) = trace "RedisSessionManager load" $ do
           pl <- getPayload mgr
           case pl of
             Nothing -> liftIO $ loadDefSession mgr
@@ -156,14 +158,14 @@ instance ISessionManager RedisSessionManager where
     --------------------------------------------------------------------------
     --commit writes to redis and sends the csrf to client and also sets the 
     --timeout.
-    commit mgr@(RedisSessionManager r _ _ to rng con) = do
+    commit mgr@(RedisSessionManager r _ _ to rng con) = trace ("RedisSessionManager commit " ++ show r) $ do
         pl <- case r of
                 Just r' -> liftIO $ do
                   runRedis con $ do
-                    hmset (sessionKey (rsCSRFToken r'))
+                    res1 <- hmset (sessionKey (rsCSRFToken r'))
                                   (map encodeTuple $ HM.toList (rsSession r'))
-                    case to of
-                      Just i -> expire (sessionKey (rsCSRFToken r')) $ toInteger i
+                    res2 <- traverse (\i -> expire (sessionKey (rsCSRFToken r')) $ toInteger i) to
+                    ping
                   return . Payload $ S.encode r'
                 Nothing -> liftIO (mkCookieSession rng) >>=
                            return . Payload . S.encode
@@ -172,10 +174,11 @@ instance ISessionManager RedisSessionManager where
 
     --------------------------------------------------------------------------
     --clear the session from redis and return a new empty one
-    reset mgr@(RedisSessionManager r _ _ _ _ con)  = do
-        case r of
-          Just r' -> liftIO $ do
-            runRedis con $ del [(sessionKey $ rsCSRFToken r')]
+    reset mgr@(RedisSessionManager _ _ _ _ _ _)  = trace "RedisSessionManager reset" $ do
+    {-reset mgr@(RedisSessionManager r _ _ _ _ con)  = trace "RedisSessionManager reset" $ do-}
+        {-case r of-}
+          {-Just r' -> liftIO $ do-}
+            {-runRedis con $ del [(sessionKey $ rsCSRFToken r')]-}
         cs <- liftIO $ mkCookieSession (randomNumberGenerator mgr)
         return $ mgr { session = Just cs }
 
