@@ -36,10 +36,9 @@ type Session = HashMap Text Text
 
 
 ------------------------------------------------------------------------------
--- | This is what the 'Payload' will be for the CookieSession backend
---
--- AA TODO: only the csrftoken should be sent to the client.
---          The Session hash should be stored in Redis
+-- | This is what the 'Payload' will be for the RedisSession backend 
+-- | Only the rsCSRFToken is sent to the client.
+-- | The Session hash is stored in Redis.
 data RedisSession = RedisSession
     { rsCSRFToken :: Text
     , rsSession :: Session
@@ -134,8 +133,8 @@ initRedisSessionManager fp cn to c =
 ------------------------------------------------------------------------------
 instance ISessionManager RedisSessionManager where
 
-{-AA TODO: I think only load and commit are supposed to do any IO-}
     --------------------------------------------------------------------------
+    --load grabs the session from redis.
     load mgr@(RedisSessionManager _ _ _ _ _ con) = do
           pl <- getPayload mgr
           case pl of
@@ -155,14 +154,21 @@ instance ISessionManager RedisSessionManager where
 
 
     --------------------------------------------------------------------------
-    --AA TODO: commit should write to redis and send the csrf to client
-    --and also set the timeout properly
-    commit mgr@(RedisSessionManager r _ _ _ rng _) = do
+    --commit writes to redis and sends the csrf to client and also sets the 
+    --timeout.
+    commit mgr@(RedisSessionManager r _ _ to rng con) = do
         pl <- case r of
-                Just r' -> return . Payload $ S.encode r'
+                Just r' -> liftIO $ do
+                  runRedis con $ do
+                    hmset (sessionKey (rsCSRFToken r'))
+                                  (map encodeTuple $ HM.toList (rsSession r'))
+                    case to of
+                      Just i -> expire (sessionKey (rsCSRFToken r')) $ toInteger i
+                  return . Payload $ S.encode r'
                 Nothing -> liftIO (mkCookieSession rng) >>=
                            return . Payload . S.encode
         setPayload mgr pl
+
 
     --------------------------------------------------------------------------
     reset mgr = do
@@ -170,42 +176,20 @@ instance ISessionManager RedisSessionManager where
         return $ mgr { session = Just cs }
 
     --------------------------------------------------------------------------
-    {-AA TODO: Extend the redis timout for the key-}
     touch = id
 
     --------------------------------------------------------------------------
-    insert k v mgr@(RedisSessionManager r _ _ _ _ con) = case r of
+    insert k v mgr@(RedisSessionManager r _ _ _ _ _) = case r of
         Just r' -> mgr { session = Just $ modSession (HM.insert k v) r' }
         Nothing -> mgr
-        {-Just r'@(RedisSession csrf) -> liftIO $-}
-          {-runRedis con $ do-}
-            {-res1 <- hset (sessionKey csrf)-}
-                         {-(encodeUtf8 k)-}
-                         {-(encodeUtf8 v)-}
-            {-[>return res1<]-}
-            {-return mgr-}
 
     --------------------------------------------------------------------------
     lookup k (RedisSessionManager r _ _ _ _ _) = r >>= HM.lookup k . rsSession
-    {-lookup k (RedisSessionManager r _ _ _ _ con) = case r of-}
-      {-Nothing -> Nothing-}
-      {-Just r'@(RedisSession csrf sess) -> do-}
-        {-runRedis con $ do-}
-          {-v <- hget (sessionKey csrf) k-}
-          {-case v of-}
-            {-Nothing -> return Nothing-}
-            {-Just v' -> return Just $ decodeUtf8 v'-}
 
     --------------------------------------------------------------------------
     delete k mgr@(RedisSessionManager r _ _ _ _ _) = case r of
         Just r' -> mgr { session = Just $ modSession (HM.delete k) r' }
         Nothing -> mgr
-
-    {-delete k mgr@(RedisSessionManager r _ _ _ _ con) = case r of-}
-        {-Just r'@(RedisSession csrf) -> do-}
-          {-runRedis con $ hdel (sessionKey csrf) k-}
-          {-mgr-}
-        {-Nothing -> mgr-}
 
     --------------------------------------------------------------------------
     csrf (RedisSessionManager r _ _ _ _ _) = case r of
@@ -216,13 +200,6 @@ instance ISessionManager RedisSessionManager where
     toList (RedisSessionManager r _ _ _ _ _) = case r of
         Just r' -> HM.toList . rsSession $ r'
         Nothing -> []
-        {-Just r'@(RedisSession csrf) -> do-}
-          {-runRedis con $ do-}
-            {-l <- hgetall (sessionKey csrf)-}
-            {-case l of-}
-              {-Right l' -> return $ map (\(k,v) -> undefined) l'-}
-              {-Left _ -> return []-}
-
 
 ------------------------------------------------------------------------------
 -- | A session payload to be stored in a SecureCookie.
