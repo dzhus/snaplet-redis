@@ -41,18 +41,19 @@ type Session = HashMap Text Text
 -- AA TODO: only the csrftoken should be sent to the client.
 --          The Session hash should be stored in Redis
 data RedisSession = RedisSession
-    { csCSRFToken :: Text
-    {-, csSession :: Session-}
+    { rsCSRFToken :: Text
+    , rsSession :: Session
     }
   deriving (Eq, Show)
 
 
 ------------------------------------------------------------------------------
+--Only serialize the rsCSRFToken to send to the client
 instance Serialize RedisSession where
-    put (RedisSession a) =
+    put (RedisSession a _) =
         S.put $ encodeUtf8 a
     get                     =
-        let unpack a = RedisSession (decodeUtf8 a)
+        let unpack a = RedisSession (decodeUtf8 a) HM.empty
         in  unpack <$> S.get
 
 
@@ -68,7 +69,7 @@ decodeTuple (a,b) = (decodeUtf8 a, decodeUtf8 b)
 mkCookieSession :: RNG -> IO RedisSession
 mkCookieSession rng = do
     t <- liftIO $ mkCSRFToken rng
-    return $ RedisSession t
+    return $ RedisSession t HM.empty
 
 
 ------------------------------------------------------------------------------
@@ -101,8 +102,8 @@ loadDefSession mgr@(RedisSessionManager ses _ _ _ rng _) =
 
 
 ------------------------------------------------------------------------------
-{-modSession :: (Session -> Session) -> RedisSession -> RedisSession-}
-{-modSession f (RedisSession t ses) = RedisSession t (f ses)-}
+modSession :: (Session -> Session) -> RedisSession -> RedisSession
+modSession f (RedisSession t ses) = RedisSession t (f ses)
 
 ------------------------------------------------------------------------------
 sessionKey :: Text -> ByteString
@@ -133,21 +134,29 @@ initRedisSessionManager fp cn to c =
 ------------------------------------------------------------------------------
 instance ISessionManager RedisSessionManager where
 
+{-AA TODO: I think only load and commit are supposed to do any IO-}
     --------------------------------------------------------------------------
-    load mgr@(RedisSessionManager r _ _ _ _ _) =
-        case r of
-          Just _ -> return mgr
-          Nothing -> do
-            pl <- getPayload mgr
-            case pl of
-              Nothing -> liftIO $ loadDefSession mgr
-              Just (Payload x) -> do
-                let c = S.decode x
-                case c of
-                  Left _ -> liftIO $ loadDefSession mgr
-                  Right cs -> return $ mgr { session = Just cs }
+    load mgr@(RedisSessionManager _ _ _ _ _ con) = do
+          pl <- getPayload mgr
+          case pl of
+            Nothing -> liftIO $ loadDefSession mgr
+            Just (Payload x) -> do
+              let c = S.decode x
+              case c of
+                Left _ -> liftIO $ loadDefSession mgr
+                Right cs -> liftIO $ do
+                  runRedis con $ do
+                    l <- hgetall (sessionKey $ rsCSRFToken cs)
+                    case l of
+                      Left _ -> liftIO $ loadDefSession mgr
+                      Right l' -> do
+                        let rs = cs { rsSession = HM.fromList $ map decodeTuple l'}
+                        return $ mgr { session = Just rs }
+
 
     --------------------------------------------------------------------------
+    --AA TODO: commit should write to redis and send the csrf to client
+    --and also set the timeout properly
     commit mgr@(RedisSessionManager r _ _ _ rng _) = do
         pl <- case r of
                 Just r' -> return . Payload $ S.encode r'
@@ -165,51 +174,54 @@ instance ISessionManager RedisSessionManager where
     touch = id
 
     --------------------------------------------------------------------------
-    {-AA TODO: Insert into a redis hash-}
     insert k v mgr@(RedisSessionManager r _ _ _ _ con) = case r of
-          {-mgr { session = Just $ modSession (HM.insert k v) r' }-}
-        Just r'@(RedisSession csrf) -> liftIO $
-          runRedis con $ do
-            res1 <- hset (sessionKey csrf)
-                         (encodeUtf8 k)
-                         (encodeUtf8 v)
-            {-return res1-}
-            return mgr
+        Just r' -> mgr { session = Just $ modSession (HM.insert k v) r' }
         Nothing -> mgr
+        {-Just r'@(RedisSession csrf) -> liftIO $-}
+          {-runRedis con $ do-}
+            {-res1 <- hset (sessionKey csrf)-}
+                         {-(encodeUtf8 k)-}
+                         {-(encodeUtf8 v)-}
+            {-[>return res1<]-}
+            {-return mgr-}
 
     --------------------------------------------------------------------------
-    lookup k (RedisSessionManager r _ _ _ _ con) = case r of
-      Nothing -> Nothing
-      Just r'@(RedisSession csrf) -> do
-        runRedis con $ do
-          v <- hget (sessionKey csrf) k
-          case v of
-            Nothing -> return Nothing
-            Just v' -> return Just $ decodeUtf8 v'
+    lookup k (RedisSessionManager r _ _ _ _ _) = r >>= HM.lookup k . rsSession
+    {-lookup k (RedisSessionManager r _ _ _ _ con) = case r of-}
+      {-Nothing -> Nothing-}
+      {-Just r'@(RedisSession csrf sess) -> do-}
+        {-runRedis con $ do-}
+          {-v <- hget (sessionKey csrf) k-}
+          {-case v of-}
+            {-Nothing -> return Nothing-}
+            {-Just v' -> return Just $ decodeUtf8 v'-}
 
     --------------------------------------------------------------------------
-    delete k mgr@(RedisSessionManager r _ _ _ _ con) = case r of
-        Just r'@(RedisSession csrf) -> do
-          runRedis con $ hdel (sessionKey csrf) k
-          mgr
+    delete k mgr@(RedisSessionManager r _ _ _ _ _) = case r of
+        Just r' -> mgr { session = Just $ modSession (HM.delete k) r' }
         Nothing -> mgr
+
+    {-delete k mgr@(RedisSessionManager r _ _ _ _ con) = case r of-}
+        {-Just r'@(RedisSession csrf) -> do-}
+          {-runRedis con $ hdel (sessionKey csrf) k-}
+          {-mgr-}
+        {-Nothing -> mgr-}
 
     --------------------------------------------------------------------------
     csrf (RedisSessionManager r _ _ _ _ _) = case r of
-        Just r' -> csCSRFToken r'
+        Just r' -> rsCSRFToken r'
         Nothing -> ""
 
     --------------------------------------------------------------------------
-    toList (RedisSessionManager r _ _ _ _ con) = case r of
-        {-AA TODO: hgetall and then convert it to Text instead of ByteString-}
-        {-Just r' -> HM.toList . csSession $ r'-}
-        Just r'@(RedisSession csrf) -> do
-          runRedis con $ do
-            l <- hgetall (sessionKey csrf)
-            case l of
-              Right l' -> return $ map (\(k,v) -> undefined) l'
-              Left _ -> return []
+    toList (RedisSessionManager r _ _ _ _ _) = case r of
+        Just r' -> HM.toList . rsSession $ r'
         Nothing -> []
+        {-Just r'@(RedisSession csrf) -> do-}
+          {-runRedis con $ do-}
+            {-l <- hgetall (sessionKey csrf)-}
+            {-case l of-}
+              {-Right l' -> return $ map (\(k,v) -> undefined) l'-}
+              {-Left _ -> return []-}
 
 
 ------------------------------------------------------------------------------
