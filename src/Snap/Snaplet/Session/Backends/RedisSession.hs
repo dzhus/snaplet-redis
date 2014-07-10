@@ -137,7 +137,10 @@ instance ISessionManager RedisSessionManager where
 
     --------------------------------------------------------------------------
     --load grabs the session from redis.
-    load mgr@(RedisSessionManager _ _ _ _ _ con) = trace "RedisSessionManager load" $ do
+    load mgr@(RedisSessionManager r _ _ _ rng con) = trace "RedisSessionManager load" $ do
+      case r of
+        Just _ -> return mgr
+        Nothing -> do
           pl <- getPayload mgr
           case pl of
             Nothing -> liftIO $ loadDefSession mgr
@@ -146,43 +149,60 @@ instance ISessionManager RedisSessionManager where
               case c of
                 Left _ -> liftIO $ loadDefSession mgr
                 Right cs -> liftIO $ do
-                  runRedis con $ do
+                  sess <- runRedis con $ do
                     l <- hgetall (sessionKey $ rsCSRFToken cs)
                     case l of
-                      Left _ -> liftIO $ loadDefSession mgr
+                      {-Left _ -> liftIO $ loadDefSession mgr-}
+                      Left _ -> liftIO $ mkCookieSession rng
                       Right l' -> do
                         let rs = cs { rsSession = HM.fromList $ map decodeTuple l'}
-                        return $ mgr { session = Just rs }
-
+                        {-return $ mgr { session = Just rs }-}
+                        return $ rs
+                  return mgr { session = Just sess }
 
     --------------------------------------------------------------------------
     --commit writes to redis and sends the csrf to client and also sets the 
     --timeout.
     commit mgr@(RedisSessionManager r _ _ to rng con) = trace ("RedisSessionManager commit " ++ show r) $ do
         pl <- case r of
-                Just r' -> liftIO $ do
-                  runRedis con $ do
-                    res <- multiExec $ do
-                      res1 <- hmset (sessionKey (rsCSRFToken r'))
-                                    (map encodeTuple $ HM.toList (rsSession r'))
-                      _ <- traverse (\i -> expire (sessionKey (rsCSRFToken r')) $ toInteger i) to
-                      return $ (,) <$> res1
-                    case res of
-                      TxSuccess _ -> return . Payload $ S.encode r'
-                      TxError e -> error e
-                      TxAborted -> error "transaction aborted"
-                Nothing -> liftIO (mkCookieSession rng) >>=
-                           return . Payload . S.encode
+          Just r' -> liftIO $ do
+            runRedis con $ do
+              res <- multiExec $ do
+                del [(sessionKey (rsCSRFToken r'))]
+                let sess = map encodeTuple $ HM.toList (rsSession r')
+                res1 <- case sess of
+                  [] -> do trace ("sess = []")
+                                 hmset (sessionKey (rsCSRFToken r')) [("","")]
+                  _ -> trace ("sess = " ++ show sess)
+                             hmset (sessionKey (rsCSRFToken r')) sess
+                {-res1 <- hmset (sessionKey (rsCSRFToken r')) -}
+                              {-(map encodeTuple $ HM.toList (rsSession r'))-}
+                res2 <- case to of
+                  Just i -> expire (sessionKey (rsCSRFToken r')) $ toInteger i
+                  Nothing -> persist (sessionKey (rsCSRFToken r'))
+                return $ (,) <$> res1 <*> res2
+              case res of
+                TxSuccess _ -> return . Payload $ S.encode r'
+                TxError e -> error e
+                TxAborted -> error "transaction aborted"
+          Nothing -> liftIO (mkCookieSession rng) >>=
+                     return . Payload . S.encode
         setPayload mgr pl
 
 
     --------------------------------------------------------------------------
     --clear the session from redis and return a new empty one
-    reset mgr@(RedisSessionManager _ _ _ _ _ _)  = trace "RedisSessionManager reset" $ do
-    {-reset mgr@(RedisSessionManager r _ _ _ _ con)  = trace "RedisSessionManager reset" $ do-}
-        {-case r of-}
-          {-Just r' -> liftIO $ do-}
-            {-runRedis con $ del [(sessionKey $ rsCSRFToken r')]-}
+    {-reset mgr@(RedisSessionManager _ _ _ _ _ _)  = trace "RedisSessionManager reset" $ do-}
+    reset mgr@(RedisSessionManager r _ _ _ _ con)  = trace "RedisSessionManager reset" $ do
+        case r of
+          Just r' -> liftIO $ do
+            runRedis con $ do
+              res1 <- trace ("del " ++ show [(sessionKey $ rsCSRFToken r')])
+                            del [(sessionKey $ rsCSRFToken r')]
+              case res1 of
+                Left e -> error $ "" ++ show e
+                Right i -> return i
+          Nothing -> return 0   -- Urgh, need a better way to do nothing
         cs <- liftIO $ mkCookieSession (randomNumberGenerator mgr)
         return $ mgr { session = Just cs }
 
@@ -191,16 +211,20 @@ instance ISessionManager RedisSessionManager where
 
     --------------------------------------------------------------------------
     insert k v mgr@(RedisSessionManager r _ _ _ _ _) = case r of
-        Just r' -> mgr { session = Just $ modSession (HM.insert k v) r' }
+        Just r' -> trace ("RedisSessionManager insert " ++ show k ++ " " ++ show v)
+                         mgr { session = Just $ modSession (HM.insert k v) r' }
         Nothing -> mgr
 
     --------------------------------------------------------------------------
-    lookup k (RedisSessionManager r _ _ _ _ _) = r >>= HM.lookup k . rsSession
+    lookup k (RedisSessionManager r _ _ _ _ _) = 
+      trace ("RedisSessionManager lookup " ++ show k)
+            r >>= HM.lookup k . rsSession
 
     --------------------------------------------------------------------------
     delete k mgr@(RedisSessionManager r _ _ _ _ _) = case r of
-        Just r' -> mgr { session = Just $ modSession (HM.delete k) r' }
-        Nothing -> mgr
+        Just r' -> mgr { session = trace ("RedisSessionManager delete " ++ show k)
+                                         Just $ modSession (HM.delete k) r' }
+        Nothing -> trace "RedisSessionManager delete Nothing case" mgr
 
     --------------------------------------------------------------------------
     csrf (RedisSessionManager r _ _ _ _ _) = case r of
