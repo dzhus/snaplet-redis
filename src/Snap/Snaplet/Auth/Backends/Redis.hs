@@ -167,6 +167,7 @@ redisSave r u =
                {- set "userid:1000" = "bob" -}
                res2 <- set (userIdKey checkedUserId) (enc $ userLogin u)
                {- set "usertoken:XXXX" = "bob" -}
+               {-AA TODO: I think this traverse call might not be working-}
                _ <- traverse (\t -> set (userTokenKey t) (enc $ userLogin u)) $ userRememberToken u
                return $ (,) <$> res1 <*> res2
              case res of
