@@ -9,10 +9,28 @@ This module allows you to use the auth snaplet with your user database
 stored in a Redis instance.
 
 In your initializer you'll need something like:
-> a <- nestSnaplet "auth" auth $
->          initRedisAuthManager defAuthSettings sess defaultConnectInfo
+
+@
+ a <- nestSnaplet "auth" auth $
+          initRedisAuthManager defAuthSettings sess defaultConnectInfo
+@
+
+
+Redis Key Space
+
+The following keys are used to store the user information in Redis.
+Be sure to avoid key collisions within your applications.
+
+* next.userId - Int representing the next spare userId.
+
+* user:[username] (eg. user:bob) - Hash of the user fields for user bob.
+
+* userid:[userId] (eg. userid:2 - bob) - Stores username for userId based lookup.
+
+* usertoken:[usertoken] (eg. usertoken:XXXXXXXX - bob) - Remember Token based user lookup.
 
 -}
+
 
 module Snap.Snaplet.Auth.Backends.Redis
   ( initRedisAuthManager
@@ -24,16 +42,16 @@ import qualified Data.ByteString as B
 import           Data.HashMap.Strict   (HashMap)
 import qualified Data.HashMap.Strict   as HM
 import           Data.Maybe (fromMaybe)
-import           Data.Traversable
-import           Data.Text (Text)
 import qualified Data.Text as T
+import           Data.Text (Text)
 import           Data.Text.Encoding as E
 import           Data.Time
+import           Data.Traversable
 import           Database.Redis
-import           Web.ClientSession
-import           Text.Read (readMaybe)
-
 import           Snap.Snaplet
+import           Text.Read (readMaybe)
+import           Web.ClientSession
+
 import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Session
 
@@ -41,22 +59,22 @@ import           Snap.Snaplet.Session
 ------------------------------------------------------------------------------
 -- | Initialize a Redis backed 'AuthManager'
 initRedisAuthManager :: AuthSettings
-                            -- ^ Authentication settings for your app
+                        -- ^ Authentication settings for your app
                         -> SnapletLens b SessionManager
-                            -- ^ Lens into a 'SessionManager' auth snaplet will
-                           -- use
+                        -- ^ Lens into a 'SessionManager' auth snaplet will use
                         -> ConnectInfo
-                            -- ^ Redis ConnectInfo
+                        -- ^ Redis ConnectInfo
                         -> SnapletInit b (AuthManager b)
-initRedisAuthManager s l c = do
+initRedisAuthManager s l c =
     makeSnaplet
         "RedisAuthManager"
         "A snaplet providing user authentication using a Redis backend"
         Nothing $ liftIO $ do
             rng <- liftIO mkRNG
             key <- getKey (asSiteKey s)
-            redisMgr <- mkRedisAuthMgr c
-            return $! AuthManager {
+            con <- connect c
+            let redisMgr = RedisAuthManager { conn = con }
+            return AuthManager {
                          backend               = redisMgr
                        , session               = l
                        , activeUser            = Nothing
@@ -67,15 +85,6 @@ initRedisAuthManager s l c = do
                        , lockout               = asLockout s
                        , randomNumberGenerator = rng
                        }
-
-mkRedisAuthMgr :: ConnectInfo -> IO RedisAuthManager
-mkRedisAuthMgr c = do
-    con <- connect c
-    return RedisAuthManager { conn = con }
-
-data RedisAuthManager = RedisAuthManager {
-                      conn :: Connection
-                      }
 
 userHashKey :: Text -> B.ByteString
 {-userHashKey user = B.append (B.fromString "user:") (E.encodeUtf8 user)-}
@@ -96,6 +105,9 @@ dec = E.decodeUtf8
 encodeInt :: Int -> B.ByteString
 encodeInt = enc . T.pack . show
 
+-- AA TODO: return a Maybe Int here instead.
+-- Might be able to use ByteString.Char8.readInt depending on if it's ok
+-- with unicode input bytes.
 decodeInt :: B.ByteString -> Int
 decodeInt = read . T.unpack . dec
 
@@ -109,12 +121,12 @@ decMaybeUTCTime s = case s of
                             _ -> readMaybe . T.unpack . dec $ s
 
 encRoles :: [Role] -> B.ByteString
-encRoles (r:rs) = enc $ T.pack $ foldl (\x y -> show x ++ "," ++ show y) (show r) rs
 encRoles [] = ""
+encRoles roles = enc $ T.intercalate "," $ map (T.pack . show) roles
 
 decodeRoles :: B.ByteString -> [Role] 
 decodeRoles "" = []
-decodeRoles s = map (read . T.unpack) $ T.splitOn (T.pack ",") (dec s)
+decodeRoles s = map (read . T.unpack) $ T.splitOn "," (dec s)
 
 encPassword :: Maybe Password -> B.ByteString
 encPassword (Just (Encrypted p)) = p
@@ -143,7 +155,7 @@ redisSave r u =
            Right checkedUserId -> do
              res <- multiExec $ do
                res1 <- hmset (userHashKey $ userLogin u) 
-                  [("userId",                 enc $ checkedUserId),
+                  [("userId",                 enc checkedUserId),
                    ("userLogin",              enc $ userLogin u),
                    ("userEmail",              enc $ fromMaybe "" $ userEmail u),
                    ("userPassword",           encPassword (userPassword u)),
@@ -245,6 +257,10 @@ redisLookupByRememberToken r utkn =
       case ul of
         Right (Just userlogin) -> liftIO $ redisLookupByLogin r (dec userlogin)
         _ -> return Nothing
+
+data RedisAuthManager = RedisAuthManager {
+                      conn :: Connection
+                      }
 
 instance IAuthBackend RedisAuthManager where
   save = redisSave
