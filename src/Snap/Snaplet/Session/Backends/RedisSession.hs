@@ -186,14 +186,14 @@ instance ISessionManager RedisSessionManager where
     --clear the session from redis and return a new empty one
     {-reset mgr@(RedisSessionManager _ _ _ _ _ _)  = trace "RedisSessionManager reset" $ do-}
     reset mgr@(RedisSessionManager r _ _ _ _ con)  = do
-        _ <- case r of
+        case r of
           Just r' -> liftIO $ do
             runRedis con $ do
               res1 <- del [(sessionKey $ rsCSRFToken r')]
               case res1 of
-                Left e  -> error $ "" ++ show e
-                Right i -> return i
-          Nothing -> return 0   -- Urgh, need a better way to do nothing
+                Left e  -> error $ show e
+                _ -> return ()
+          _ -> return ()
         cs <- liftIO $ mkCookieSession (randomNumberGenerator mgr)
         return $ mgr { session = Just cs }
 
