@@ -1,10 +1,12 @@
 Name:                snaplet-redis
-Version:             0.1.3.3
+Version:             0.1.4
 Synopsis:            Redis support for Snap Framework
 Description:         This package provides a snaplet which exposes
                      interface to Redis in-memory key-value storage as
                      implemented by Hedis library. Inline
-                     documentation contains usage examples.
+                     documentation contains usage examples. It also
+                     implements a Redis backed Auth backend and a 
+                     Redis backed Session backend.
 Homepage:            https://github.com/dzhus/snaplet-redis/
 Bug-reports:         https://github.com/dzhus/snaplet-redis/issues/
 License:             BSD3
@@ -26,14 +28,25 @@ Library
   ghc-options: -Wall
   hs-source-dirs: src
 
-  Exposed-modules:   Snap.Snaplet.RedisDB
-
+  Exposed-modules:   Snap.Snaplet.RedisDB, 
+                     Snap.Snaplet.Auth.Backends.Redis,
+                     Snap.Snaplet.Session.Backends.RedisSession
   Build-depends:
-    base                >= 4 && < 5,
-    configurator        >= 0.2 && < 0.4,
-    lens                >= 3.8 && < 4.4,
-    hedis               == 0.6.*,
-    mtl                 >= 2 && < 3,
-    network             >= 2.4 && < 2.6,
-    snap                >= 0.11 && < 0.14,
-    transformers        >= 0.3 && < 0.5
+    aeson                 >= 0.7.0.6,
+    base                  >= 4 && < 5,
+    bytestring            >= 0.10.0.2,
+    cereal                >= 0.4.0.1,
+    clientsession         >= 0.9.0.3,
+    configurator          >= 0.2 && < 0.4,
+    containers            >= 0.5.0.0,
+    hedis                 == 0.6.*,
+    lens                  >= 3.8 && < 4.4,
+    mtl                   >= 2 && < 3,
+    network               >= 2.4 && < 2.6,
+    snap                  >= 0.11 && < 0.14,
+    snap-core             >= 0.9.6.3,
+    syb                   >= 0.4.0,
+    text                  >= 0.11.3.1,
+    time                  >= 1.4.0.1,
+    transformers          >= 0.3 && < 0.5,
+    unordered-containers  >= 0.2.3.0
