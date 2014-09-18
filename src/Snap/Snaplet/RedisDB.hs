@@ -20,10 +20,14 @@ where
 import Control.Lens
 import Control.Monad.State
 
-import Database.Redis
+import Database.Redis hiding (String)
+import Network (PortID(..))
 import Network.Socket (PortNumber(..))
 import Data.Configurator as C
+import Data.Configurator.Types (Configured(..), Value(..))
 import Data.Maybe
+import Data.Ratio (numerator, denominator)
+import qualified Data.Text as T
 
 import Snap.Snaplet
 
@@ -35,6 +39,14 @@ data RedisDB = RedisDB
     }
 
 makeLenses ''RedisDB
+
+------------------------------------------------------------------------------
+-- | Instance to allow port to be either a path to a unix socket or a
+-- port number.
+instance Configured PortID where
+  convert (Number r) | denominator r == 1 = Just $ PortNumber $ PortNum $ fromInteger $ numerator r
+  convert (String s) = Just $ UnixSocket $ T.unpack s
+  convert _ = Nothing
 
 ------------------------------------------------------------------------------
 -- | A lens to retrieve the connection to Redis from the 'RedisDB'
@@ -89,8 +101,7 @@ redisDBInitConf = makeSnaplet "redis" "Redis snaplet." Nothing $ do
 
         let def = defaultConnectInfo
         return $ def { connectHost = fromMaybe (connectHost def) cHost
-                     , connectPort =
-                       maybe (connectPort def) (PortNumber . PortNum) cPort
+                     , connectPort = fromMaybe (connectPort def) cPort
                      , connectAuth = cAuth
                      , connectMaxConnections =
                        fromMaybe (connectMaxConnections def) cCons
