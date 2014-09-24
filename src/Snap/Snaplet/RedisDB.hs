@@ -83,6 +83,20 @@ runRedisDB snaplet action = do
 -- >     max_idle_time = 0.5
 -- > }
 --
+-- Alternately, you can configure it to connect via a socket, for example:
+--
+-- > redis {
+-- >     port = "/var/run/redis/redis.sock"
+-- > }
+--
+-- This corresponds to setting:
+--
+-- > connectPort = UnixSocket "/var/run/redis/redis.sock"
+--
+-- in `ConnectInfo`. In this case, the host setting, if anything, is
+-- ignored.
+--
+--
 -- > appInit :: SnapletInit MyApp MyApp
 -- > appInit = makeSnaplet "app" "App with Redis child snaplet" Nothing $
 -- >           do
