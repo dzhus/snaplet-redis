@@ -32,7 +32,7 @@ Library
   Build-depends:
     base                >= 4 && < 5,
     configurator        >= 0.2 && < 0.4,
-    lens                >= 3.8 && < 4.6,
+    lens                >= 3.8 && < 4.8,
     hedis               == 0.6.*,
     mtl                 >= 2 && < 3,
     network             >= 2.4 && < 2.7,
