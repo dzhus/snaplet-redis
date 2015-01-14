@@ -1,5 +1,5 @@
 Name:                snaplet-redis
-Version:             0.1.4.1
+Version:             0.1.4.2
 Synopsis:            Redis support for Snap Framework
 Description:         This package provides a snaplet which exposes
                      interface to Redis in-memory key-value storage as
