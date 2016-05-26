@@ -1,0 +1,33 @@
+---
+name:                snaplet-redis
+version:             0.1.4.2
+synopsis:            Redis support for Snap Framework
+description:
+  >-
+    This package provides a snaplet which exposes interface to Redis
+    in-memory key-value storage as implemented by Hedis library.
+    Inline documentation contains usage examples.
+homepage:     https://github.com/dzhus/snaplet-redis/
+bug-reports:  https://github.com/dzhus/snaplet-redis/issues/
+license:      BSD3
+license-file: LICENSE
+author:       Dmitry Dzhus
+maintainer:   dima@dzhus.org
+category:     Web, Snap
+
+extra-source-files:
+  - ChangeLog.md
+
+library:
+  ghc-options: -Wall
+  source-dirs: src
+  dependencies:
+    - base
+    - configurator
+    - lens
+    - hedis
+    - mtl
+    - network
+    - snap
+    - transformers
+    - text
