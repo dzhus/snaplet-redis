@@ -21,7 +21,6 @@ import Control.Lens
 import Control.Monad.State
 
 import Database.Redis hiding (String)
-import Network (PortID(..))
 import Network.Socket (PortNumber(..))
 import Data.Configurator as C
 import Data.Configurator.Types (Configured(..), Value(..))
@@ -44,7 +43,7 @@ makeLenses ''RedisDB
 -- | Instance to allow port to be either a path to a unix socket or a
 -- port number.
 instance Configured PortID where
-  convert (Number r) | denominator r == 1 = Just $ PortNumber $ PortNum $ fromInteger $ numerator r
+  convert (Number r) | denominator r == 1 = Just $ PortNumber $ fromInteger $ numerator r
   convert (String s) = Just $ UnixSocket $ T.unpack s
   convert _ = Nothing
 
