@@ -21,7 +21,6 @@ import Control.Lens
 import Control.Monad.State
 
 import Database.Redis hiding (String)
-import Network.Socket (PortNumber(..))
 import Data.Configurator as C
 import Data.Configurator.Types (Configured(..), Value(..))
 import Data.Maybe
@@ -33,9 +32,9 @@ import Snap.Snaplet
 
 ------------------------------------------------------------------------------
 -- | Snaplet's state data type
-data RedisDB = RedisDB
-    { _connection :: Connection -- ^ DB connection pool.
-    }
+newtype RedisDB = RedisDB
+                  { _connection :: Connection -- ^ DB connection pool.
+                  }
 
 makeLenses ''RedisDB
 
@@ -119,7 +118,7 @@ redisDBInitConf = makeSnaplet "redis" "Redis snaplet." Nothing $ do
                      , connectMaxConnections =
                        fromMaybe (connectMaxConnections def) cCons
                      , connectMaxIdleTime =
-                       maybe (connectMaxIdleTime def) (fromRational) cIdle
+                       maybe (connectMaxIdleTime def) fromRational cIdle
                      }
 
     conn <- liftIO $ connect connInfo
