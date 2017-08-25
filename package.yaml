@@ -22,7 +22,7 @@ library:
   ghc-options: -Wall
   source-dirs: src
   dependencies:
-    - base
+    - base < 5
     - configurator
     - lens
     - hedis
