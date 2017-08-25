@@ -29,8 +29,6 @@ import qualified Data.Text as T
 
 import Snap.Snaplet
 
-
-------------------------------------------------------------------------------
 -- | Snaplet's state data type
 newtype RedisDB = RedisDB
                   { _connection :: Connection -- ^ DB connection pool.
@@ -38,7 +36,6 @@ newtype RedisDB = RedisDB
 
 makeLenses ''RedisDB
 
-------------------------------------------------------------------------------
 -- | Instance to allow port to be either a path to a unix socket or a
 -- port number.
 instance Configured PortID where
@@ -46,13 +43,11 @@ instance Configured PortID where
   convert (String s) = Just $ UnixSocket $ T.unpack s
   convert _ = Nothing
 
-------------------------------------------------------------------------------
 -- | A lens to retrieve the connection to Redis from the 'RedisDB'
 -- wrapper.
 redisConnection :: Simple Lens RedisDB Connection
 redisConnection = connection
 
-------------------------------------------------------------------------------
 -- | Perform action using Redis connection from RedisDB snaplet pool
 -- (wrapper for 'Database.Redis.runRedis').
 --
@@ -65,7 +60,6 @@ runRedisDB snaplet action = do
   liftIO $ runRedis c action
 
 
-------------------------------------------------------------------------------
 -- | Make RedisDB snaplet and initialize database connection from
 -- snaplet config file. Options are read from the "redis" section of
 -- the application config (e.g. ./devel.cfg) or from the main section
