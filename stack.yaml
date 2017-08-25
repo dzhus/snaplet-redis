@@ -1,2 +1,7 @@
-resolver: nightly-2017-08-25
+resolver: nightly-2017-07-25
 pvp-bounds: upper
+extra-deps:
+- snap-1.0.0.2
+- heist-1.0.1.0
+- map-syntax-0.2.0.2
+- xmlhtml-0.2.5
