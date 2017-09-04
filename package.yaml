@@ -21,11 +21,40 @@ library:
   source-dirs: src
   dependencies:
     - base < 5
+    - bytestring
+    - cereal
+    - clientsession
     - configurator
     - lens
     - hedis
     - mtl
     - network
-    - snap
+    - snap >= 1.0
+    - snap-core
     - transformers
     - text
+    - time
+    - unordered-containers
+
+executables:
+  Example:
+    main: Site.hs
+    source-dirs:
+      - example
+    dependencies:
+      - base
+      - aeson
+      - bytestring
+      - lens
+      - hedis
+      - heist
+      - monad-control
+      - mtl
+      - snap
+      - snap-core
+      - snap-server
+      - snaplet-redis
+      - text
+      - time
+      - xmlhtml
+    default-language: Haskell2010
