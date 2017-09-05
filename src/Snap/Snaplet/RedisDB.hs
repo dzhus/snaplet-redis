@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE Rank2Types #-}
 
@@ -9,7 +10,7 @@ Redis DB snaplet.
 -}
 
 module Snap.Snaplet.RedisDB
-    (RedisDB
+    (RedisDB(..)
     , runRedisDB
     , redisConnection
     , redisDBInit
@@ -36,11 +37,13 @@ newtype RedisDB = RedisDB
 
 makeLenses ''RedisDB
 
+newtype ConfiguredPortID = ConfiguredPortID { unConfiguredPortID :: PortID }
+
 -- | Instance to allow port to be either a path to a unix socket or a
 -- port number.
-instance Configured PortID where
-  convert (Number r) | denominator r == 1 = Just $ PortNumber $ fromInteger $ numerator r
-  convert (String s) = Just $ UnixSocket $ T.unpack s
+instance Configured ConfiguredPortID where
+  convert (Number r) | denominator r == 1 = Just $ ConfiguredPortID $ PortNumber $ fromInteger $ numerator r
+  convert (String s) = Just $ ConfiguredPortID $ UnixSocket $ T.unpack s
   convert _ = Nothing
 
 -- | A lens to retrieve the connection to Redis from the 'RedisDB'
@@ -107,7 +110,8 @@ redisDBInitConf = makeSnaplet "redis" "Redis snaplet." Nothing $ do
 
         let def = defaultConnectInfo
         return $ def { connectHost = fromMaybe (connectHost def) cHost
-                     , connectPort = fromMaybe (connectPort def) cPort
+                     , connectPort = fromMaybe (connectPort def)
+                                     (unConfiguredPortID <$> cPort)
                      , connectAuth = cAuth
                      , connectMaxConnections =
                        fromMaybe (connectMaxConnections def) cCons

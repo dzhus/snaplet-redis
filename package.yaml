@@ -16,16 +16,56 @@ category:     Web, Snap
 extra-source-files:
   - CHANGELOG.md
 
+flags:
+  Example:
+    description: Build example
+    manual: False
+    default: False
+
 library:
   ghc-options: -Wall
   source-dirs: src
   dependencies:
     - base < 5
+    - bytestring
+    - cereal
+    - clientsession
     - configurator
     - lens
     - hedis
     - mtl
     - network
     - snap
+    - snap-core
     - transformers
     - text
+    - time
+    - unordered-containers
+
+executables:
+  Example:
+    when:
+      - condition: flag(Example)
+        then:
+          buildable: True
+        else:
+          buildable: False
+    main: Site.hs
+    source-dirs:
+      - example
+    dependencies:
+      - base
+      - aeson
+      - bytestring
+      - lens
+      - hedis
+      - heist
+      - monad-control
+      - mtl
+      - snap
+      - snap-core
+      - snap-server
+      - snaplet-redis
+      - text
+      - time
+      - xmlhtml
