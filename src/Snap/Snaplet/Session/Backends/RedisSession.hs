@@ -122,7 +122,7 @@ sessionKey t = encodeUtf8 $ mappend "session:" t
 initRedisSessionManager
     :: FilePath             -- ^ Path to site-wide encryption key
     -> ByteString           -- ^ Session cookie name
-    -> Maybe ByteString     -- ^ Cookie Domain
+    -> Maybe ByteString     -- ^ Cookie Domain (has no effect with snap < 1.0)
     -> Maybe Int            -- ^ Session time-out (replay attack protection)
     -> RedisDB              -- ^ Redis connection
     -> SnapletInit b SessionManager
