@@ -8,18 +8,15 @@ module Snap.Snaplet.Session.Backends.RedisSession
     ) where
 
 ------------------------------------------------------------------------------
-import           Control.Applicative
 import           Control.Monad.Reader
 import           Data.ByteString                     (ByteString)
 import           Data.HashMap.Strict                 (HashMap)
 import qualified Data.HashMap.Strict                 as HM
-import           Data.Monoid
 import           Data.Serialize                      (Serialize)
 import qualified Data.Serialize                      as S
 import           Data.Text                           (Text)
 import           Data.Text.Encoding
 import           Data.Typeable
--- import           GHC.Generics
 import           Snap.Core                           (Snap)
 import           Web.ClientSession
 import           Database.Redis
@@ -38,7 +35,7 @@ type Session = HashMap Text Text
 
 
 ------------------------------------------------------------------------------
--- | This is what the 'Payload' will be for the RedisSession backend 
+-- | This is what the 'Payload' will be for the RedisSession backend
 -- | Only the rsCSRFToken is sent to the client.
 -- | The Session hash is stored in Redis.
 data RedisSession = RedisSession
@@ -88,7 +85,7 @@ data RedisSessionManager = RedisSessionManager {
         -- seconds.
     , randomNumberGenerator :: RNG
         -- ^ handle to a random number generator
-    , redisConnection :: Connection
+    , _redisConnection :: Connection
         -- ^ Redis connection to store session info
 } deriving (Typeable)
 
@@ -159,7 +156,7 @@ instance ISessionManager RedisSessionManager where
                   return mgr { session = Just sess }
 
     --------------------------------------------------------------------------
-    --commit writes to redis and sends the csrf to client and also sets the 
+    --commit writes to redis and sends the csrf to client and also sets the
     --timeout.
     commit mgr@(RedisSessionManager r _ _ to rng con) = do
         pl <- case r of
