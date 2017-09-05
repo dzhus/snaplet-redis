@@ -82,6 +82,10 @@ data RedisSessionManager = RedisSessionManager {
         -- ^ A long encryption key used for secure cookie transport
     , cookieName            :: ByteString
         -- ^ Cookie name for the session system
+    , cookieDomain          :: Maybe ByteString
+        -- ^ Cookie domain for session system. You may want to set it to
+        -- dot prefixed domain name like ".example.com", so the cookie is
+        -- available to sub domains.
     , timeOut               :: Maybe Int
         -- ^ Session cookies will be considered "stale" after this many
         -- seconds.
@@ -94,7 +98,7 @@ data RedisSessionManager = RedisSessionManager {
 
 ------------------------------------------------------------------------------
 loadDefSession :: RedisSessionManager -> IO RedisSessionManager
-loadDefSession mgr@(RedisSessionManager ses _ _ _ rng _) =
+loadDefSession mgr@(RedisSessionManager ses _ _ _ _ rng _) =
     case ses of
       Nothing -> do ses' <- mkCookieSession rng
                     return $! mgr { session = Just ses' }
@@ -118,17 +122,18 @@ sessionKey t = encodeUtf8 $ mappend "session:" t
 initRedisSessionManager
     :: FilePath             -- ^ Path to site-wide encryption key
     -> ByteString           -- ^ Session cookie name
+    -> Maybe ByteString     -- ^ Cookie Domain
     -> Maybe Int            -- ^ Session time-out (replay attack protection)
     -> RedisDB              -- ^ Redis connection
     -> SnapletInit b SessionManager
-initRedisSessionManager fp cn to c =
+initRedisSessionManager fp cn cd to c =
     makeSnaplet "RedisSession"
                 "A snaplet providing sessions via HTTP cookies with a Redis backend."
                 Nothing $ liftIO $ do
         key <- getKey fp
         rng <- liftIO mkRNG
         return $! SessionManager
-               $  RedisSessionManager Nothing key cn to rng (_connection c)
+               $  RedisSessionManager Nothing key cn cd to rng (_connection c)
 
 
 ------------------------------------------------------------------------------
@@ -136,7 +141,7 @@ instance ISessionManager RedisSessionManager where
 
     --------------------------------------------------------------------------
     --load grabs the session from redis.
-    load mgr@(RedisSessionManager r _ _ _ rng con) =
+    load mgr@(RedisSessionManager r _ _ _ _ rng con) =
       case r of
         Just _  -> return mgr
         Nothing -> do
@@ -160,7 +165,7 @@ instance ISessionManager RedisSessionManager where
     --------------------------------------------------------------------------
     --commit writes to redis and sends the csrf to client and also sets the
     --timeout.
-    commit mgr@(RedisSessionManager r _ _ to rng con) = do
+    commit mgr@(RedisSessionManager r _ _ _ to rng con) = do
         pl <- case r of
           Just r' -> liftIO $
             runRedis con $ do
@@ -185,7 +190,7 @@ instance ISessionManager RedisSessionManager where
     --------------------------------------------------------------------------
     --clear the session from redis and return a new empty one
     {-reset mgr@(RedisSessionManager _ _ _ _ _ _)  = trace "RedisSessionManager reset" $ do-}
-    reset mgr@(RedisSessionManager r _ _ _ _ con)  = do
+    reset mgr@(RedisSessionManager r _ _ _ _ _ con)  = do
         case r of
           Just r' -> liftIO $
             runRedis con $ do
@@ -201,25 +206,25 @@ instance ISessionManager RedisSessionManager where
     touch = id
 
     --------------------------------------------------------------------------
-    insert k v mgr@(RedisSessionManager r _ _ _ _ _) = case r of
+    insert k v mgr@(RedisSessionManager r _ _ _ _ _ _) = case r of
         Just r' -> mgr { session = Just $ modSession (HM.insert k v) r' }
         Nothing -> mgr
 
     --------------------------------------------------------------------------
-    lookup k (RedisSessionManager r _ _ _ _ _) = r >>= HM.lookup k . rsSession
+    lookup k (RedisSessionManager r _ _ _ _ _ _) = r >>= HM.lookup k . rsSession
 
     --------------------------------------------------------------------------
-    delete k mgr@(RedisSessionManager r _ _ _ _ _) = case r of
+    delete k mgr@(RedisSessionManager r _ _ _ _ _ _) = case r of
         Just r' -> mgr { session = Just $ modSession (HM.delete k) r' }
         Nothing -> mgr
 
     --------------------------------------------------------------------------
-    csrf (RedisSessionManager r _ _ _ _ _) = case r of
+    csrf (RedisSessionManager r _ _ _ _ _ _) = case r of
         Just r' -> rsCSRFToken r'
         Nothing -> ""
 
     --------------------------------------------------------------------------
-    toList (RedisSessionManager r _ _ _ _ _) = case r of
+    toList (RedisSessionManager r _ _ _ _ _ _) = case r of
         Just r' -> HM.toList . rsSession $ r'
         Nothing -> []
 
@@ -241,6 +246,6 @@ setPayload :: RedisSessionManager -> Payload -> Snap ()
 setPayload mgr = setSecureCookie
     (cookieName mgr)
 #if MIN_VERSION_snap(1,0,0)
-    Nothing
+    (cookieDomain mgr)
 #endif
     (siteKey mgr) (timeOut mgr)
