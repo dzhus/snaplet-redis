@@ -57,4 +57,3 @@ executables:
       - text
       - time
       - xmlhtml
-    default-language: Haskell2010
