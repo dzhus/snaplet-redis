@@ -16,6 +16,12 @@ category:     Web, Snap
 extra-source-files:
   - CHANGELOG.md
 
+flags:
+  Example:
+    description: Build example
+    manual: False
+    default: False
+
 library:
   ghc-options: -Wall
   source-dirs: src
@@ -38,6 +44,12 @@ library:
 
 executables:
   Example:
+    when:
+      - condition: flag(Example)
+        then:
+          buildable: True
+        else:
+          buildable: False
     main: Site.hs
     source-dirs:
       - example

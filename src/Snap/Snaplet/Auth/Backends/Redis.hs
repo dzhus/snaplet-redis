@@ -80,7 +80,9 @@ initRedisAuthManager l d =
                        , activeUser            = Nothing
                        , minPasswdLen          = asMinPasswdLen s
                        , rememberCookieName    = asRememberCookieName s
+#if MIN_VERSION_snap(1,0,0)
                        , rememberCookieDomain  = Nothing
+#endif
                        , rememberPeriod        = asRememberPeriod s
                        , siteKey               = key
                        , lockout               = asLockout s
@@ -279,9 +281,9 @@ redisLookupByRememberToken r utkn =
         Right (Just userlogin) -> liftIO $ redisLookupByLogin r (dec userlogin)
         _ -> return Nothing
 
-data RedisAuthManager = RedisAuthManager {
-                      conn :: Connection
-                      }
+newtype RedisAuthManager = RedisAuthManager {
+    conn :: Connection
+    }
 
 instance IAuthBackend RedisAuthManager where
   save = redisSave
