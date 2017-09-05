@@ -8,12 +8,10 @@ module Snap.Snaplet.Session.Backends.RedisSession
     ) where
 
 ------------------------------------------------------------------------------
-import           Control.Applicative
 import           Control.Monad.Reader
 import           Data.ByteString                     (ByteString)
 import           Data.HashMap.Strict                 (HashMap)
 import qualified Data.HashMap.Strict                 as HM
-import           Data.Monoid
 import           Data.Serialize                      (Serialize)
 import qualified Data.Serialize                      as S
 import           Data.Text                           (Text)
@@ -88,7 +86,7 @@ data RedisSessionManager = RedisSessionManager {
         -- seconds.
     , randomNumberGenerator :: RNG
         -- ^ handle to a random number generator
-    , redisConnection :: Connection
+    , _redisConnection :: Connection
         -- ^ Redis connection to store session info
 } deriving (Typeable)
 

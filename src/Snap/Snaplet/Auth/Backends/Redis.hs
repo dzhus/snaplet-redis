@@ -39,7 +39,6 @@ module Snap.Snaplet.Auth.Backends.Redis
   ( initRedisAuthManager
   ) where
 
-import           Control.Applicative
 import           Control.Monad.State hiding (get)
 import qualified Data.ByteString as B
 import           Data.HashMap.Strict   (HashMap)
@@ -49,7 +48,6 @@ import qualified Data.Text as T
 import           Data.Text (Text)
 import           Data.Text.Encoding as E
 import           Data.Time
-import           Data.Traversable
 import           Database.Redis
 import           Snap.Snaplet
 import           Text.Read (readMaybe)
@@ -223,6 +221,7 @@ redisLookupByLogin r ul =
         Left _ -> return Nothing
         Right h -> return $ Just $ authUserFromHash h
 
+#if MIN_VERSION_snap(1,1,0)
 redisLookupByEmail :: RedisAuthManager -> Text -> IO (Maybe AuthUser)
 redisLookupByEmail r em =
     runRedis (conn r) $ do
@@ -235,6 +234,7 @@ redisLookupByEmail r em =
                     Left  _  -> return Nothing
                     Right h  -> return $ Just $ authUserFromHash h
             _ -> return Nothing
+#endif
 
 hmlookup :: B.ByteString -> HashMap B.ByteString B.ByteString -> B.ByteString
 hmlookup k hm = fromMaybe "" $ HM.lookup k hm
