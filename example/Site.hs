@@ -64,7 +64,7 @@ addHandler = do
     mname <- getParam "uname"
     email <- getParam "email"
     let name = maybe "guest" T.decodeUtf8 mname
-    u <- with auth $ do
+    u <- with auth $
         createUser name "" >>= \u -> case u of
             Left _   -> return u
             Right u' -> saveUser (u' {userEmail = T.decodeUtf8 <$> email})

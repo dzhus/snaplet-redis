@@ -1,4 +1,5 @@
 ------------------------------------------------------------------------------
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -134,7 +135,7 @@ instance ISessionManager RedisSessionManager where
 
     --------------------------------------------------------------------------
     --load grabs the session from redis.
-    load mgr@(RedisSessionManager r _ _ _ rng con) = do
+    load mgr@(RedisSessionManager r _ _ _ rng con) =
       case r of
         Just _  -> return mgr
         Nothing -> do
@@ -152,7 +153,7 @@ instance ISessionManager RedisSessionManager where
                       Left _   -> liftIO $ mkCookieSession rng
                       Right l' -> do
                         let rs = cs { rsSession = HM.fromList $ map decodeTuple l'}
-                        return $ rs
+                        return rs
                   return mgr { session = Just sess }
 
     --------------------------------------------------------------------------
@@ -160,10 +161,10 @@ instance ISessionManager RedisSessionManager where
     --timeout.
     commit mgr@(RedisSessionManager r _ _ to rng con) = do
         pl <- case r of
-          Just r' -> liftIO $ do
+          Just r' -> liftIO $
             runRedis con $ do
               res <- multiExec $ do
-                _ <- del [(sessionKey (rsCSRFToken r'))]   --Clear old values
+                _ <- del [sessionKey (rsCSRFToken r')]   --Clear old values
                 let sess = map encodeTuple $ HM.toList (rsSession r')
                 res1 <- case sess of
                   [] -> hmset (sessionKey (rsCSRFToken r')) [("","")]
@@ -176,8 +177,7 @@ instance ISessionManager RedisSessionManager where
                 TxSuccess _ -> return . Payload $ S.encode r'
                 TxError e   -> error e
                 TxAborted   -> error "transaction aborted"
-          Nothing -> liftIO (mkCookieSession rng) >>=
-                     return . Payload . S.encode
+          Nothing -> liftIO $ Payload . S.encode <$> mkCookieSession rng
         setPayload mgr pl
 
 
@@ -186,9 +186,9 @@ instance ISessionManager RedisSessionManager where
     {-reset mgr@(RedisSessionManager _ _ _ _ _ _)  = trace "RedisSessionManager reset" $ do-}
     reset mgr@(RedisSessionManager r _ _ _ _ con)  = do
         case r of
-          Just r' -> liftIO $ do
+          Just r' -> liftIO $
             runRedis con $ do
-              res1 <- del [(sessionKey $ rsCSRFToken r')]
+              res1 <- del [sessionKey $ rsCSRFToken r']
               case res1 of
                 Left e  -> error $ show e
                 _ -> return ()
@@ -237,5 +237,9 @@ getPayload mgr = getSecureCookie (cookieName mgr) (siteKey mgr) (timeOut mgr)
 ------------------------------------------------------------------------------
 -- | Set the client-side value
 setPayload :: RedisSessionManager -> Payload -> Snap ()
-setPayload mgr x = setSecureCookie (cookieName mgr) Nothing (siteKey mgr)
-                                   (timeOut mgr) x
+setPayload mgr = setSecureCookie
+    (cookieName mgr)
+#if MIN_VERSION_snap(1,0,0)
+    Nothing
+#endif
+    (siteKey mgr) (timeOut mgr)
