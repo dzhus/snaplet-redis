@@ -29,7 +29,7 @@ library:
     - hedis
     - mtl
     - network
-    - snap >= 1.0
+    - snap
     - snap-core
     - transformers
     - text
