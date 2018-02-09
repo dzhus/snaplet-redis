@@ -29,7 +29,7 @@ import           Snap.Snaplet.Session
 import           Snap.Snaplet.Session.Backends.RedisSession
 import           Snap.Util.FileServe
 import           Heist
-import           Text.XmlHtml hiding (render)
+import           Text.XmlHtml
 
 
 ------------------------------------------------------------------------------
@@ -94,4 +94,3 @@ app = makeSnaplet "app" "An snaplet example application." Nothing $ do
 
 main :: IO ()
 main = serveSnaplet defaultConfig app
-

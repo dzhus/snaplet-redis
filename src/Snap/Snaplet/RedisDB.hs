@@ -110,8 +110,8 @@ redisDBInitConf = makeSnaplet "redis" "Redis snaplet." Nothing $ do
 
         let def = defaultConnectInfo
         return $ def { connectHost = fromMaybe (connectHost def) cHost
-                     , connectPort = fromMaybe (connectPort def)
-                                     (unConfiguredPortID <$> cPort)
+                     , connectPort = maybe (connectPort def)
+                                     unConfiguredPortID cPort
                      , connectAuth = cAuth
                      , connectMaxConnections =
                        fromMaybe (connectMaxConnections def) cCons
