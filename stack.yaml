@@ -1,2 +1,8 @@
-resolver: nightly-2018-02-08
+resolver: nightly-2019-02-17
 pvp-bounds: upper
+extra-deps:
+- heist-1.1.0.1@sha256:7c0fe723e766e41a234def6ad3162958512ad78d3aaaa9b36676186a4427dd01
+- map-syntax-0.3@sha256:84dc86fa1c292af25963bf7212ae7d55ce87239a9f8d4cc85bd0acc35874d2e1
+- pwstore-fast-2.4.4@sha256:9b6a37510d8b9f37f409a8ab3babac9181afcaaa3fce8ba1c131a7ed3de30698
+- snap-1.1.2.0@sha256:82199b1b2d662c99bcc7e3219ece4beba9352b9b01569db6b3e93a46d717d5be
+- xmlhtml-0.2.5.2@sha256:0e9ada870a5c5c7d522ed8444bef0f9f0e1587e31a5881f15a5f9cdd983af8b4
