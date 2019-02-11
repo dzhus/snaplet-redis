@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
