@@ -45,11 +45,8 @@ library:
 executables:
   Example:
     when:
-      - condition: flag(Example)
-        then:
-          buildable: True
-        else:
-          buildable: False
+      - condition: (!flag(Example))
+        buildable: false
     main: Site.hs
     source-dirs:
       - example
