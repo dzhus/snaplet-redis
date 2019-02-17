@@ -9,27 +9,20 @@
 module Main where
 
 ------------------------------------------------------------------------------
-import           Control.Applicative
 import           Control.Monad.Trans
 import           Control.Monad.Reader
 import           Control.Monad.State
 import           Data.ByteString (ByteString)
 import           Control.Lens
-import           Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as T
-import           Data.Time.Clock
 import qualified Database.Redis as R
 import           Snap
 import           Snap.Snaplet.Auth
 import           Snap.Snaplet.Auth.Backends.Redis
-import           Snap.Snaplet.Heist
 import           Snap.Snaplet.RedisDB
 import           Snap.Snaplet.Session
 import           Snap.Snaplet.Session.Backends.RedisSession
-import           Snap.Util.FileServe
-import           Heist
-import           Text.XmlHtml
 
 
 ------------------------------------------------------------------------------
@@ -50,6 +43,7 @@ routes = [ ("/",           writeText "hello")
          , ("find/:email", findHandler)
          ]
 
+fooHandler :: Handler App App ()
 fooHandler = do
     env <- with auth get
     results <- runRedisDB db $ do
@@ -60,6 +54,7 @@ fooHandler = do
                 liftIO (lookupByLogin env (T.drop 5 $ T.decodeUtf8 l))
     liftIO $ print (results :: [Maybe AuthUser])
 
+addHandler :: Handler App App ()
 addHandler = do
     mname <- getParam "uname"
     email <- getParam "email"
@@ -71,6 +66,7 @@ addHandler = do
     liftIO $ print u
 
 #if MIN_VERSION_snap(1,1,0)
+findHandler :: Handler App App ()
 findHandler = do
     email <- getParam "email"
     env <- with auth get
@@ -86,7 +82,7 @@ app = makeSnaplet "app" "An snaplet example application." Nothing $ do
     d <- nestSnaplet "db" db redisDBInitConf
     s <- nestSnaplet "" sess $
          initRedisSessionManager "site_key.txt"
-                                 "_cookie" Nothing (d ^. snapletValue)
+                                 "_cookie" Nothing (Just $ 60 * 60) (d ^. snapletValue)
     a <- nestSnaplet "auth" auth $ initRedisAuthManager sess (d ^. snapletValue)
     addRoutes routes
     return $ App s d a
