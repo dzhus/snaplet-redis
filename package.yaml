@@ -34,10 +34,8 @@ library:
     - lens
     - hedis
     - mtl
-    - network
     - snap
     - snap-core
-    - transformers
     - text
     - time
     - unordered-containers
@@ -52,17 +50,12 @@ executables:
       - example
     dependencies:
       - base
-      - aeson
       - bytestring
       - lens
       - hedis
-      - heist
-      - monad-control
       - mtl
       - snap
       - snap-core
       - snap-server
       - snaplet-redis
       - text
-      - time
-      - xmlhtml
