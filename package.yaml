@@ -31,7 +31,7 @@ library:
     - cereal
     - clientsession
     - configurator
-    - lens
+    - lens < 5
     - hedis
     - mtl
     - network
@@ -57,7 +57,7 @@ executables:
       - base
       - aeson
       - bytestring
-      - lens
+      - lens < 5
       - hedis
       - heist
       - monad-control
