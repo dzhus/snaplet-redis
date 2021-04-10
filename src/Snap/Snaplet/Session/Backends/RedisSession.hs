@@ -219,9 +219,7 @@ instance ISessionManager RedisSessionManager where
         Nothing -> mgr
 
     --------------------------------------------------------------------------
-    csrf (RedisSessionManager r _ _ _ _ _ _) = case r of
-        Just r' -> rsCSRFToken r'
-        Nothing -> ""
+    csrf (RedisSessionManager r _ _ _ _ _ _) = maybe "" rsCSRFToken r
 
     --------------------------------------------------------------------------
     toList (RedisSessionManager r _ _ _ _ _ _) = case r of

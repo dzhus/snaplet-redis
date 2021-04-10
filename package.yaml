@@ -34,10 +34,8 @@ library:
     - lens < 5
     - hedis
     - mtl
-    - network
     - snap
     - snap-core
-    - transformers
     - text
     - time
     - unordered-containers
@@ -45,27 +43,19 @@ library:
 executables:
   Example:
     when:
-      - condition: flag(Example)
-        then:
-          buildable: True
-        else:
-          buildable: False
+      - condition: (!flag(Example))
+        buildable: false
     main: Site.hs
     source-dirs:
       - example
     dependencies:
       - base
-      - aeson
       - bytestring
       - lens < 5
       - hedis
-      - heist
-      - monad-control
       - mtl
       - snap
       - snap-core
       - snap-server
       - snaplet-redis
       - text
-      - time
-      - xmlhtml
