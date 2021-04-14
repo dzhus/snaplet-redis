@@ -1,6 +1,8 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.6.1] - 2021-04-14
+
+### Changed
 
 - GHC 8.10.x and 8.8.x support
 
@@ -30,6 +32,7 @@
 
 ## [0.1] - 2012-02-15
 
+[0.1.6.1]: https://github.com/dzhus/snaplet-redis/compare/0.1.6...0.1.6.1
 [0.1.6]: https://github.com/dzhus/snaplet-redis/compare/0.1.5...0.1.6
 [0.1.5]: https://github.com/dzhus/snaplet-redis/compare/0.1.4...0.1.5
 [0.1.4]: https://github.com/dzhus/snaplet-redis/compare/0.1...0.1.4
