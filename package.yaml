@@ -15,6 +15,7 @@ category:     Web, Snap
 
 extra-source-files:
   - CHANGELOG.md
+  - README.md
 
 flags:
   Example:
