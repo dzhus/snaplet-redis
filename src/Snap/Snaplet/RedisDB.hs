@@ -48,7 +48,7 @@ instance Configured ConfiguredPortID where
 
 -- | A lens to retrieve the connection to Redis from the 'RedisDB'
 -- wrapper.
-redisConnection :: Simple Lens RedisDB Connection
+redisConnection :: Lens' RedisDB Connection
 redisConnection = connection
 
 -- | Perform action using Redis connection from RedisDB snaplet pool
@@ -57,7 +57,7 @@ redisConnection = connection
 -- > runRedisDB database $ do
 -- >   set "hello" "world"
 runRedisDB :: (MonadIO m, MonadState app m) =>
-               Simple Lens app (Snaplet RedisDB) -> Redis a -> m a
+               Lens' app (Snaplet RedisDB) -> Redis a -> m a
 runRedisDB snaplet action = do
   c <- gets $ view (snaplet . snapletValue . connection)
   liftIO $ runRedis c action
