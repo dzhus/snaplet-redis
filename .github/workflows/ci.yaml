@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        stack_yaml: ['stack.yaml']
+        stack_yaml: ['stack.yaml', 'stack-previous.yaml']
     steps:
       - name: Setup Stack
         uses: haskell/actions/setup@v1

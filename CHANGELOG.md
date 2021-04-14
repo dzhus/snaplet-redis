@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+
+- GHC 8.10.x and 8.8.x support
+
 ## [0.1.6] - 2019-02-17
 
 ### Changed
