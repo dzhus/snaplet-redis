@@ -24,7 +24,7 @@ flags:
     default: False
 
 library:
-  ghc-options: -Wall
+  ghc-options: -Wall -Wcompat
   source-dirs: src
   dependencies:
     - base < 5
